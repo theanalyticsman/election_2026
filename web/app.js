@@ -2,7 +2,7 @@ const db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
 const OFFICES = { president: 'President', senate: 'Senate', house: 'House' };
 const cache = new Map(); // "office|year" -> Map(fips -> row[])
-let counties, mode = 'result', available = [];
+let counties, mode = 'poll', available = [], v26 = null; // v26: null = auto, 'model' or 'vs' (2026 tab)
 
 // ---- data ----
 async function loadAvailable() {
@@ -47,12 +47,17 @@ function fillSelects() {
   }
   $('bYear').value = $('aYear').options[Math.max(0, $('aYear').options.length - 2)]?.value;
   $('race').onchange = render;
+  $('baseSel').onchange = render;
+  $('v26model').onclick = () => { v26 = 'model'; render(); };
+  $('v26vs').onclick = () => { v26 = 'vs'; render(); };
   document.querySelectorAll('#mode button[data-m]').forEach(b => b.onclick = () => {
     mode = b.dataset.m;
     document.querySelectorAll('#mode button').forEach(x => x.classList.toggle('on', x === b));
     $('bGrp').style.display = mode === 'swing' ? '' : 'none';
-    $('aGrp').style.display = mode === 'affinity' ? 'none' : '';
-    if (mode === 'affinity') $('raceGrp').style.display = 'none';
+    $('aGrp').style.display = (mode === 'affinity' || mode === 'poll') ? 'none' : '';
+    $('baseGrp').style.display = mode === 'perf' ? '' : 'none';
+    $('v26Grp').style.display = mode === 'poll' ? '' : 'none';
+    if (mode === 'affinity' || mode === 'poll') $('raceGrp').style.display = 'none';
     $('aLabel').textContent = mode === 'swing' ? 'Election A' : 'Election';
     render();
   });
@@ -100,9 +105,10 @@ async function init() {
   $('zin').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
   $('zout').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
   $('zreset').onclick = () => svg.transition().duration(350).call(zoom.transform, d3.zoomIdentity);
+  if (typeof feedRefresh === 'function') await feedRefresh();
   await loadAvailable();
   fillSelects();
-  await render();
+  document.querySelector('#mode button[data-m="poll"]').click(); // land on the 2026 tab
 }
 
 const planOf = year => year <= 2020 ? 'ak13' : 'ak22';
@@ -110,6 +116,7 @@ let cur = {};
 async function render() {
   $('status').textContent = 'Loading…';
   if (mode === 'affinity') return renderAffinity();
+  if (mode === 'poll') return renderPoll();
   const race = $('race').value;
   const aOff = $('aOffice').value, aYear = +$('aYear').value;
   const isRace = o => o === 'senate' || o === 'house';
@@ -201,6 +208,7 @@ function showAffTip(e, d) {
 function showTip(e, d) {
   if (cur.affinity) return showAffTip(e, d);
   if (cur.perf) return showPerfTip(e, d);
+  if (cur.poll) return showPollTip(e, d);
   const id = d.id, a = pick(cur.A.get(id), cur.race);
   let html = `<b>${d.plan ? d.properties.name + ' (Alaska)' : d.properties.name + ' County, FIPS ' + id}</b><table>` + line(a, `${cur.aYear} ${OFFICES[cur.aOff]}`);
   if (cur.B) {
@@ -224,7 +232,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const titleCase = s => esc(s).toLowerCase().replace(/(^|[\s-])\w/g, m => m.toUpperCase());
 
 async function selectState(d, opts = {}) {
-  await ensureAffinity();
+  await Promise.all([ensureAffinity(), ensurePolls()]);
   for (const r of affinity.values()) fipsToPo[r.county_fips.slice(0, 2)] = r.state_po;
   const po = poOf(d);
   if (!po) return;
@@ -241,6 +249,7 @@ async function selectState(d, opts = {}) {
     const near = rows.filter(r => +r.score <= 3).length;
     p.innerHTML = `<button id="pclose" aria-label="Close">&times;</button><h2>${name}</h2>
       <p class="muted">${rows.length} counties scored. ${near} within 3 pts of the state. Lower score = tracks the state's result more closely.</p>
+      ${pollHtml(po)}
       ${typeof projectionHtml === 'function' ? projectionHtml(po) : ''}
       <table><thead><tr><th>#</th><th>County</th><th title="Weighted gap + swing error, points">Score</th><th title="Positive = more Democratic than the state">Lean</th><th title="Share of the statewide vote">Vote</th></tr></thead><tbody>` +
       rows.slice(0, 10).map(r => `<tr data-f="${r.county_fips}"><td>${r.rank_in_state}</td><td>${titleCase(r.county_name)}</td><td>${(+r.score).toFixed(1)}</td>
@@ -257,8 +266,16 @@ async function selectState(d, opts = {}) {
         <p class="small">Based on President + Senate 2020, 2022 and 2024, weighted 1:2:4 so 2024 counts most. Hover a row to find the county on the map.</p>
       </details>`;
     p.querySelectorAll('tbody tr').forEach(tr => {
-      tr.onmouseenter = () => svg.selectAll('path.county').classed('hl', x => x.id === tr.dataset.f && !x.plan);
-      tr.onmouseleave = () => svg.selectAll('path.county').classed('hl', false);
+      // dim the rest of the state to ~30% and bring the hovered county to the front with a bold outline
+      tr.onmouseenter = () => {
+        svg.classed('hasHl', true);
+        svg.selectAll('path.county').classed('hl', x => x.id === tr.dataset.f && !x.plan).filter('.hl').raise();
+      };
+      tr.onmouseleave = () => {
+        svg.classed('hasHl', false);
+        svg.selectAll('path.county').classed('hl', false);
+        svg.select('#cg').selectAll('path.county').order();
+      };
     });
   }
   p.hidden = false;
@@ -310,7 +327,10 @@ async function renderPerf(A, race, aOff, aYear) {
   }
   // a contest where one major party has almost no votes (no candidate, or a strong independent) gives no meaningful expectation
   const valid = po => st[po] && Math.min(st[po][0], st[po][1]) / st[po][2] >= 0.10;
-  cur = { perf: true, A, race, aOff, aYear, stM: po => valid(po) ? (st[po][0] - st[po][1]) / st[po][2] * 100 : null };
+  await ensurePolls();
+  const usePoll = $('baseSel').value === 'poll' && aOff === 'senate' && aYear === 2026;
+  const counted = po => valid(po) ? (st[po][0] - st[po][1]) / st[po][2] * 100 : null;
+  cur = { perf: true, A, race, aOff, aYear, usePoll, stM: po => { const p = usePoll && pollAvg.get(po + '|' + race); return p ? +p.margin : (usePoll ? null : counted(po)); } };
   let have = 0;
   svg.selectAll('path.county').style('display', d => (d.plan === 'ak13') ? 'none' : null).style('fill', d => {
     const i = perfInfo(d);
@@ -320,7 +340,7 @@ async function renderPerf(A, race, aOff, aYear) {
   const stops = d3.range(0, 1.001, .1).map(t => colorPerf(-15 + t * 30));
   $('legend').innerHTML = `<span>More R than expected</span><span class="bar" style="background:linear-gradient(90deg,${stops.join(',')})"></span><span>More D than expected</span><span>(points)</span>`;
   const inSample = aYear >= 2020 && aYear <= 2024 && (aOff === 'president' || aOff === 'senate');
-  $('status').textContent = `${aYear} ${OFFICES[aOff]} vs expected: ${have.toLocaleString()} counties. Expected = the state's margin in this contest plus the county's usual lean; the state margin uses only the counties loaded.`
+  $('status').textContent = `${aYear} ${OFFICES[aOff]} vs expected: ${have.toLocaleString()} counties. Expected = the state's margin in this contest plus the county's usual lean; ${usePoll ? 'the state margin is the poll average (grey = state has no poll average).' : 'the state margin uses only the counties loaded.'}`
     + (inSample ? ' (2020-2024 are the years the scores were built from, so large surprises are rare here; this view is meant for 2026.)' : '');
 }
 function showPerfTip(e, d) {
@@ -336,4 +356,95 @@ function showPerfTip(e, d) {
   t.style.display = 'block';
   t.style.left = Math.min(e.clientX + 14, innerWidth - 260) + 'px';
   t.style.top = Math.min(e.clientY + 14, innerHeight - t.offsetHeight - 8) + 'px';
+}
+
+// ---- poll forecast: statewide poll average + each county's usual lean = expected county margin ----
+let pollAvg = null, pollByState = null;
+async function ensurePolls() {
+  if (pollAvg) return;
+  pollAvg = new Map(); pollByState = new Map();
+  const { data, error } = await db.from('poll_averages').select('*');
+  if (error) { console.warn('poll_averages unavailable', error.message); return; }
+  data.forEach(p => { pollAvg.set(p.state_po + '|' + p.race, p); pollByState.set(p.state_po, p); });
+}
+function pollExpected(d) {
+  if (d.plan || !pollByState) return null;
+  const af = affinity.get(d.id), p = af && pollByState.get(af.state_po);
+  return p ? { af, p, expected: +p.margin + +af.lean } : null;
+}
+// ---- the 2026 tab: the polling model until results are added, then results against the polling expectation ----
+function liveSenateRows() {
+  const m = new Map(), states = new Set();
+  if (typeof LIVE === 'undefined') return { m, states };
+  const cs = Object.values(allContests()).filter(c => c.office === 'senate');
+  // apply each state's race that matches its poll last, so it wins if both regular and special rows were pasted
+  const match = c => (pollByState && pollByState.get(c.state_po) && pollByState.get(c.state_po).race === c.race) ? 1 : 0;
+  cs.sort((a, b) => match(a) - match(b));
+  for (const c of cs) { states.add(c.state_po); for (const r of c.rows) m.set(r.fips, { d: r.d, r: r.r, o: r.o, state: c.state_po }); }
+  return { m, states };
+}
+async function renderPoll() {
+  await Promise.all([ensureAffinity(), ensurePolls()]);
+  const { m: live, states } = liveSenateRows();
+  const hasData = states.size > 0;
+  const view = hasData && v26 !== 'model' ? 'vs' : 'model';
+  $('v26model').classList.toggle('on', view === 'model');
+  $('v26vs').classList.toggle('on', view === 'vs');
+  $('v26vs').disabled = !hasData;
+  $('v26vs').textContent = hasData ? `Actual vs polls (${states.size} state${states.size === 1 ? '' : 's'})` : 'Actual vs polls';
+  cur = { poll: true, view, live };
+  let have = 0;
+  svg.selectAll('path.county').style('display', d => (d.plan === 'ak13') ? 'none' : null).style('fill', d => {
+    const e = pollExpected(d);
+    if (!e) return 'var(--nodata)';
+    if (view === 'model') { have++; return colorResult(e.expected); }
+    const r = live.get(d.id), t = r ? r.d + r.r + r.o : 0;
+    if (!(t > 0)) return 'var(--nodata)';
+    have++; return colorPerf((r.d - r.r) / t * 100 - e.expected);
+  });
+  if (view === 'model') {
+    const stops = d3.range(0, 1.001, .1).map(t => colorResult(-60 + t * 120));
+    $('legend').innerHTML = `<span>R +60</span><span class="bar" style="background:linear-gradient(90deg,${stops.join(',')})"></span><span>D +60</span><span>(expected margin, points)</span>`;
+    $('status').textContent = `Polling model: 2026 Senate polling average + each county's usual lean = expected margin. ${have.toLocaleString()} counties in ${pollByState ? pollByState.size : 0} polled states; grey = no poll average. Add results (+ Add 2026 results) to compare them with this. Expect a typical miss of about 5 points, mostly from the poll itself.`;
+  } else {
+    const stops = d3.range(0, 1.001, .1).map(t => colorPerf(-15 + t * 30));
+    $('legend').innerHTML = `<span>More R than polls imply</span><span class="bar" style="background:linear-gradient(90deg,${stops.join(',')})"></span><span>More D than polls imply</span><span>(points)</span>`;
+    $('status').textContent = `2026 Senate results vs. the polling expectation (poll average + the county's usual lean): ${have.toLocaleString()} counties with results in ${states.size} state${states.size === 1 ? '' : 's'}. Blue = more Democratic than the polls imply, red = more Republican. States without results stay grey; switch to Poll model to see the forecast everywhere. ${typeof feedNote === 'function' ? feedNote() : ''}`;
+  }
+}
+function showPollTip(e, d) {
+  const x = pollExpected(d), t = $('tip');
+  const sgn2 = v => (v >= 0 ? 'D +' : 'R +') + Math.abs(v).toFixed(1);
+  if (!x) { t.innerHTML = `<b>${d.properties.name}</b><br><span style="color:var(--muted)">No poll forecast (no poll average for this state)</span>`; }
+  else {
+    const r = cur.live && cur.live.get(d.id), tot = r ? r.d + r.r + r.o : 0;
+    const miss = Math.sqrt(Number(x.p.err) ** 2 + 2.5 ** 2);
+    let head, actualRow = '';
+    if (cur.view === 'vs' && tot > 0) {
+      const actual = (r.d - r.r) / tot * 100, diff = actual - x.expected;
+      head = `${diff >= 0 ? 'More Democratic' : 'More Republican'} than the polls imply by ${Math.abs(diff).toFixed(1)} pts`;
+      actualRow = `<tr><td>Actual margin</td><td class="pct">${sgn2(actual)}</td><td></td></tr>`;
+    } else {
+      head = `Expected margin: ${sgn2(x.expected)} (about &plusmn;${miss.toFixed(0)})${cur.view === 'vs' ? ', no results yet' : ''}`;
+    }
+    t.innerHTML = `<b>${d.properties.name} County, ${x.af.state_po}</b><table>
+      <tr><td colspan="3"><b style="margin:4px 0 2px">${head}</b></td></tr>${actualRow}
+      ${actualRow ? `<tr><td>Polls imply</td><td class="pct">${sgn2(x.expected)}</td><td></td></tr>` : ''}
+      <tr><td>State poll average</td><td class="pct">${sgn2(+x.p.margin)}</td><td></td></tr>
+      <tr><td>Usual lean vs state</td><td class="pct">${sgn2(+x.af.lean)}</td><td></td></tr>
+      <tr><td colspan="3" style="color:var(--muted);font-size:12px">${x.p.n_polls} polls, latest ${x.p.last_poll}</td></tr></table>`;
+  }
+  t.style.display = 'block';
+  t.style.left = Math.min(e.clientX + 14, innerWidth - 260) + 'px';
+  t.style.top = Math.min(e.clientY + 14, innerHeight - t.offsetHeight - 8) + 'px';
+}
+function pollHtml(po) {
+  const p = pollByState && pollByState.get(po);
+  if (!p) return '';
+  const thin = p.n_polls < 3 || (Date.now() - Date.parse(p.last_poll)) / 864e5 > 21;
+  return `<div class="proj"><h3>Poll average: 2026 ${OFFICES[p.office]}${p.race === 'special' ? ' (special)' : ''}</h3>
+    <div class="big">${sgn(+p.margin)}</div>
+    <div class="small">D ${(+p.dem_pct).toFixed(0)} &middot; R ${(+p.rep_pct).toFixed(0)} of decided voters, from ${p.n_polls} polls, latest ${p.last_poll}. Typical miss about &plusmn;${(+p.err).toFixed(0)} points.</div>
+    ${thin ? '<div class="small muted">Thin polling: fewer than 3 polls, or none in the last 3 weeks.</div>' : ''}
+    <div class="small muted">The 2026 tab shows each county's expected margin (this average plus the county's usual lean).</div></div>`;
 }

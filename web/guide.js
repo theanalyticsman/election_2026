@@ -8,6 +8,7 @@
 
   <h2>Quick start for election night</h2>
   <ol>
+    <li><b>Start on the 2026 tab:</b> before any results are in it shows the polling model. When you add county results it switches to showing where counties are running ahead of or behind the polls.</li>
     <li><b>Prepare:</b> open <b>Affinity</b> and click a state. The panel lists the 10 counties that best mirror that state: the ones to watch.</li>
     <li><b>Enter results:</b> click <b>+ Add 2026 results</b>, choose the state and contest, and paste a county table from NYT, CNN or a state site. Check the column guesses, then <b>Add to map</b>.</li>
     <li><b>Read the state:</b> click the state again. The box at the top of the panel shows a projected statewide margin built from the counties already in, next to what has actually been counted.</li>
@@ -20,6 +21,7 @@
     <tr><th>Results</th><td>Each county coloured by margin: red is Republican, blue is Democratic, white is even. The colours saturate at 60 points. Pick office, year, and (for Senate or House) regular or special races. Hover for percentages and vote counts.</td></tr>
     <tr><th>Affinity</th><td>How closely each county tracks its state. Dark blue counties are the best bellwethers; pale ones are far from the state's result. Based on President and Senate in 2020, 2022 and 2024.</td></tr>
     <tr><th>Vs expected</th><td>For a chosen election: actual margin compared with what the county <i>should</i> do, given the state's margin and the county's usual lean. Blue means more Democratic than expected, red more Republican. Meant for 2026; for 2020&ndash;2024 it is quiet because those years built the scores.</td></tr>
+    <tr><th>2026</th><td>The landing tab. With no results added, it shows the <b>polling model</b>: the statewide 2026 Senate poll average plus each county's usual lean gives an expected margin for every county (grey states have no poll average). Once you add results it switches to <b>Actual vs polls</b>: each county coloured by how far its real margin is from that expectation. Blue means more Democratic than the polls imply, red more Republican. Toggle between the two at the top. The poll average weights recent polls, larger samples and non-partisan sponsors more, and sets undecided voters aside. Expect a typical miss of about 5 points, mostly from the poll itself; the county pattern given the state result is good to about 2&ndash;3.</td></tr>
     <tr><th>Swing</th><td>Compares two elections (A then B), county by county. Blue means the county moved toward Democrats, red toward Republicans, saturating at 25 points. You can compare different offices, such as 2020 President with 2020 Senate.</td></tr>
   </table>
   <p>Zoom with the scroll wheel or the + / &minus; buttons, drag to pan, <b>Fit</b> resets. <b>Click a state</b> to open its panel and zoom in; press Esc or click the ocean to close it.</p>
@@ -29,12 +31,14 @@
     <li><b>Score:</b> how far a county's margin typically sits from its state's, in points, blended with how well its swing between elections follows the state's. <b>Lower is better.</b></li>
     <li><b>Lean:</b> which way the county usually differs from the state. D+2 means about 2 points more Democratic; R+2 about 2 points more Republican.</li>
     <li><b>Vote:</b> the county's share of the statewide vote. Small counties are noisier; large ones move the state.</li>
+    <li><b>Poll average:</b> shown above the projection for polled states, with the number of polls, the latest date and a warning when polling is thin (under 3 polls, or none in 3 weeks).</li>
     <li><b>Projection:</b> each reporting county implies a statewide margin (its margin now minus its usual lean). The estimates are averaged, weighted toward the best bellwethers. The range is the larger of 1.5 points or how much the estimates disagree. It needs at least 3 scored counties, and ignores counties below your % reporting cutoff if you entered that column.</li>
   </ul>
   <p><b>Example:</b> if Erie is at D+1.7 and usually runs D+1.7 ahead of its state, it implies a state that is even.</p>
 
   <h2>Adding 2026 results</h2>
   <ul>
+    <li><b>Official feeds:</b> Florida, South Carolina and Ohio Senate results are pulled automatically from the states' own sites every few minutes and appear on the map by themselves (the page checks once a minute). You don't need to paste those states; if you do, your paste takes priority.</li>
     <li><b>What to paste:</b> a table with a county column plus <b>vote counts</b> for the Democrat and the Republican. Other votes, total votes and % reporting are optional. Percent-only tables do not work.</li>
     <li><b>Matching:</b> county names are matched within the chosen state. It copes with &ldquo;County&rdquo;/&ldquo;Parish&rdquo; endings, &ldquo;St.&rdquo; versus &ldquo;Saint&rdquo;, spacing and accents. Rows it cannot match are listed with a dropdown so you can assign or skip them.</li>
     <li><b>Where it is stored:</b> only in your browser. Other devices will not see it, and clearing site data erases it. Use <b>Export all as CSV</b> to keep a copy.</li>
