@@ -1,0 +1,45 @@
+# Pulls official state results into Supabase every 5 minutes on election night (Nov 3-4, 2026, UTC).
+# Needs repo secrets: SUPABASE_ACCESS_TOKEN (and SUPABASE_DB_PASSWORD if `supabase link` asks for it).
+name: Live state results
+
+on:
+  schedule:
+    - cron: '*/5 23 3 11 *'     # Nov 3, 6pm ET onward (polls close 7pm ET in FL/SC, 7:30pm in OH)
+    - cron: '*/5 0-9 4 11 *'    # through 5am ET on Nov 4
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-results
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SKIP_MIGRATIONS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Link Supabase project
+        run: supabase link --project-ref tgprqdxhvplhewzlbkgh
+      # each state runs on its own so one failing feed does not stop the others
+      - name: Florida
+        continue-on-error: true
+        run: python -I scripts/fetch_fl.py
+      - name: South Carolina
+        continue-on-error: true
+        run: python -I scripts/fetch_sc.py
+      - name: Ohio
+        continue-on-error: true
+        run: python -I scripts/fetch_oh.py

@@ -5,6 +5,8 @@ Static map (`web/`) reading county results from Supabase table `county_results`.
 - `scripts/download.ps1` – fetch MEDSL source files into `data/raw/` (needs `DV_NAME`, `DV_EMAIL` env vars for Dataverse's guestbook)
 - `scripts/build_county_results.py` – aggregate to `data/processed/county_results.csv`
 - `scripts/load_supabase.py` – create the table (migration in `supabase/migrations/`) and upsert rows via `supabase db query --linked`
+- `scripts/fetch_fl.py` – pull Florida's official election-night files (2026 U.S. Senate special) and load county rows; re-run every few minutes (`--no-load` to preview)
+- `scripts/fetch_sc.py`, `scripts/fetch_oh.py` – same for South Carolina (Clarity JSON) and Ohio (official XML feed); both Senate
 - `scripts/import_2026.py results.csv` – load 2026 results (see `data/2026_template.csv`); re-run as counts update
 - `scripts/affinity.py` – county-vs-state affinity scores (Affinity view); `scripts/check_2026.py` – after importing 2026, test whether the bellwethers held
 - `scripts/backtest.py` – hold-out test: how well do a few bellwether counties project a state's result (scores from 2020+2022, tested on 2024)
@@ -19,3 +21,5 @@ Aggregation notes: general-election stage only (runoffs excluded); summary rows 
 other independents/third parties (e.g. McMullin in UT) are 'other'. Swing compares the same race type (regular/special) on both sides.
 
 Deploy: pushing to `master` publishes `web/` to GitHub Pages (`.github/workflows/pages.yml`). In the repo's Settings > Pages, set Source to GitHub Actions and the custom domain to election.theanalyticsfolks.com (DNS: CNAME `election` -> `theanalyticsman.github.io`).
+
+Polls: `scripts/polls.py` averages a long-format Senate poll file (`data/raw/senate_polls.csv`, not committed) into per-state averages (`poll_averages` table). The Poll forecast tab adds each county's usual lean to the state average. Only the state averages are published.

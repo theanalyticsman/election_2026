@@ -29,7 +29,7 @@ def run(sql):
         os.unlink(t.name)
 
 
-for mig in sorted((ROOT / "supabase/migrations").glob("*.sql")):
+for mig in ([] if os.environ.get("SKIP_MIGRATIONS") else sorted((ROOT / "supabase/migrations").glob("*.sql"))):
     run(mig.read_text(encoding="utf-8"))
 rows = list(csv.DictReader(open(src, encoding="utf-8")))
 upd = ", ".join(f"{c}=excluded.{c}" for c in COLS[5:]) + ", updated_at=now()"
