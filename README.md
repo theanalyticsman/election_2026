@@ -17,3 +17,5 @@ Senate shows only states with a race that year; Georgia 2020/Oklahoma 2022 etc. 
 
 Aggregation notes: general-election stage only (runoffs excluded); summary rows dropped; King (ME) and Sanders (VT) are counted as D;
 other independents/third parties (e.g. McMullin in UT) are 'other'. Swing compares the same race type (regular/special) on both sides.
+
+Deploy: pushing to `master` publishes `web/` to GitHub Pages (`.github/workflows/pages.yml`). In the repo's Settings > Pages, set Source to GitHub Actions and the custom domain to election.theanalyticsfolks.com (DNS: CNAME `election` -> `theanalyticsman.github.io`).
