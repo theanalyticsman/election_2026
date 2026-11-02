@@ -28,8 +28,18 @@ def get(path):
     return gzip.decompress(b) if b[:2] == b"\x1f\x8b" else b
 
 
+def get_json(path):
+    b = get(path)
+    try:
+        return json.loads(b.decode("utf-8-sig"))
+    except ValueError:
+        sys.exit(f"{path}: expected JSON, got {len(b)} bytes starting {b[:200]!r} (blocked or changed?)")
+
+
 ver = get("current_ver.txt").decode().strip()
-summ = json.loads(get(f"{ver}/json/en/summary.json"))
+if not ver.isdigit():
+    sys.exit(f"current_ver.txt is not a version number: {ver[:200]!r} (blocked?)")
+summ = get_json(f"{ver}/json/en/summary.json")
 con = next((c for c in summ if c["K"] == KEY), None)
 if not con:
     sys.exit(f"Contest {KEY} (U.S. Senate) not found in election {a.election}.")
@@ -38,7 +48,7 @@ print("Candidates:", ", ".join(chs))
 di, ri = parties.index("DEM"), parties.index("REP")
 cname = lambda i: chs[i].split(" ", 1)[1] if " " in chs[i] else chs[i]
 
-counties = [c for c in json.loads(get(f"{ver}/json/ALL.json"))["Contests"] if c["A"] != "-1" and c["A"]]
+counties = [c for c in get_json(f"{ver}/json/ALL.json")["Contests"] if c["A"] != "-1" and c["A"]]
 counties.sort(key=lambda c: c["A"])
 if len(counties) != 46:
     sys.exit(f"Expected 46 counties, got {len(counties)}; refusing to guess FIPS codes.")
