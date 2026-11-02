@@ -1,0 +1,8 @@
+data/raw/
+node_modules/
+.env
+.env.local
+dist/
+__pycache__/
+data/download.log
+data/processed/affinity_check_2026.csv
