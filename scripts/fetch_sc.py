@@ -57,5 +57,5 @@ print(f"{len(rows)} counties, {tot:,} votes counted (D {sum(r['dem_votes'] for r
 if a.no_load:
     sys.exit(0)
 if tot == 0:
-    sys.exit("No votes counted yet; nothing loaded.")
+    print("No votes counted yet; nothing loaded."); sys.exit(0)
 subprocess.run([sys.executable, "-I", str(ROOT / "scripts/load_supabase.py"), str(OUT)], check=True)
