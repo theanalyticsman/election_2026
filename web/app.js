@@ -291,13 +291,16 @@ function zoomToState(po) {
   fs.forEach(f => { const [[a, b], [c, e]] = path.bounds(f); x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c); y1 = Math.max(y1, e); });
   // keep the state in the left ~60% so the panel does not cover it
   const k = Math.min(8, 0.8 / Math.max((x1 - x0) / 975, (y1 - y0) / 610));
-  const tx = 975 * 0.36 - k * (x0 + x1) / 2, ty = 610 / 2 - k * (y0 + y1) / 2;
+  const tx = 975 * (innerWidth <= 700 ? 0.5 : 0.36) - k * (x0 + x1) / 2, ty = 610 / 2 - k * (y0 + y1) / 2;
   svg.transition().duration(500).call(zoomB.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
 }
 
+// phones: tapping the panel title folds the panel down to its title so the map is visible
+document.addEventListener('click', e => { const h = e.target.closest('#panel h2'); if (h && innerWidth <= 700) $('panel').classList.toggle('min'); });
+
 function clearSel() {
   selectedPo = null;
-  $('panel').hidden = true;
+  $('panel').hidden = true; $('panel').classList.remove('min');
   svg.classed('hasSel', false);
   svg.selectAll('path.county').classed('sel', false).classed('hl', false);
   if (zoomB) svg.transition().duration(350).call(zoomB.transform, d3.zoomIdentity);
