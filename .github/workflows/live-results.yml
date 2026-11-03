@@ -43,3 +43,6 @@ jobs:
       - name: Ohio
         continue-on-error: true
         run: python -I scripts/fetch_oh.py
+      - name: Iowa
+        continue-on-error: true
+        run: python -I scripts/import_ia.py --download

@@ -11,7 +11,7 @@ The 2026 tab reads 2026 rows from the Supabase `county_results` table every minu
 | Florida, Ohio | Automatic (GitHub Actions, every 5 min) | A |
 | South Carolina | Loop on your PC | B |
 | Michigan | Download county file, run script | C |
-| Iowa | Download results workbook, run script | D |
+| Iowa | Automatic in GitHub Actions (if GitHub's servers are allowed), or one command locally | D |
 | Texas, Maine, Alaska, Minnesota, Kansas, Nebraska, Kentucky, and every other state | Copy a county table, paste | E |
 
 Common setup for any local run: the Supabase CLI must be logged in and linked (`supabase db query --linked` is what `scripts/load_supabase.py` uses). Set `SKIP_MIGRATIONS=1` to skip re-applying table setup. Every loader prints "No votes counted yet" and loads nothing until votes exist. Add `--no-load` to preview without loading.
@@ -27,7 +27,7 @@ Common setup for any local run: the Supabase CLI must be logged in and linked (`
 - One-off: `python scripts/fetch_sc.py`. Party comes from the feed. Regular Senate race.
 
 ## C. Michigan: download file, run script
-1. From Michigan's results site, download the county results file (tab-delimited `..._CENR_BY_COUNTY.txt`) into `C:\Users\appar\Downloads\election_night`.
+1. In your browser, open https://mvic.sos.state.mi.us/VoteHistory/GetElectionResultFile?electionId=706 and save the county results file (tab-delimited `..._CENR_BY_COUNTY.txt`) into `C:\Users\appar\Downloads\election_night`. This must be done by hand: the site sits behind a Cloudflare "Just a moment" check that blocks scripts (do not try to bypass it). Check the file's election date: `electionId=706` was supplied as the link for tomorrow's election, but it was not opened from a browser in advance, so confirm it is the Nov 3 general and not the August primary.
 2. Run `python scripts/import_mi.py` (uses the newest Michigan file in that folder; you can also pass a file or folder path).
 3. Re-download and re-run for each update.
 - It refuses any file whose election date is not 2026-11-03 (the file tested in advance was the August primary).
@@ -35,9 +35,12 @@ Common setup for any local run: the Supabase CLI must be logged in and linked (`
 - Regular Senate race.
 
 ## D. Iowa: download workbook, run script
-1. From Iowa's results site, download the results workbook (`detailxlsx.zip`, containing `detail.xlsx`) into `C:\Users\appar\Downloads\election_night`.
-2. Run `python scripts/import_ia.py` (uses the newest detail zip/xlsx in that folder; reads the sheet named "United States Senator"; `--dem Turek --rep Hinson` are the defaults, Laehn and write-ins count as other).
-3. Re-download and re-run for each update.
+Iowa's results site (Clarity ENR, election 127077) accepts scripts from my PC, so no manual download is needed. The Actions workflow also has an "Iowa" step that runs the same command every 5 minutes. **Unverified:** South Carolina's Clarity site refused GitHub's servers, so Iowa may too. After the first Run workflow, open the Iowa step: if it fails with an empty/blocked response, run the command below on your PC instead (it is a red step, which is harmless to the other states).
+
+1. Run `python scripts/import_ia.py --download`. It reads https://electionresults.iowa.gov/IA/127077/current_ver.txt (the current version number), downloads `.../127077/<version>/reports/detailxlsx.zip` into `C:\Users\appar\Downloads\election_night`, and loads the Senate sheet. (Tested: version 383162, same 220,538-byte file as the manual download.)
+2. Re-run the same command for each update (the version number changes as results update, which is why the script looks it up instead of using a fixed link; a pasted link like `.../127077/383162/reports/detailxlsx.zip` goes stale).
+3. Without `--download` it reads the newest detail zip/xlsx already in the folder, if you saved one by hand. It reads the sheet named "United States Senator"; `--dem Turek --rep Hinson` are the defaults, Laehn and write-ins count as other.
+- For a repeating run, use a PowerShell loop like `loop_sc.ps1` (copy it and swap in `python scripts/import_ia.py --download`).
 - The workbook has no party field, hence the name flags. Tested only on the zero-vote pre-election file: 99 counties, correct codes (Polk 19153, Johnson 19103). Not yet tried on real counts.
 - Regular Senate race.
 

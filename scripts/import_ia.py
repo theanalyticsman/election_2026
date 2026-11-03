@@ -22,9 +22,23 @@ ap.add_argument("file", nargs="?", default=str(Path.home() / "Downloads" / "elec
 ap.add_argument("--dem", default="Turek")
 ap.add_argument("--rep", default="Hinson")
 ap.add_argument("--no-load", action="store_true")
+ap.add_argument("--download", action="store_true", help="fetch the latest workbook from Iowa's results site first")
 a = ap.parse_args()
 
+ENR = "https://electionresults.iowa.gov/IA/127077/"
+UA = "election-comp-research/1.0 (personal analysis; contact apparao.prattipati@gmail.com)"
 src = Path(a.file)
+if a.download:
+    import urllib.request
+    get = lambda u: urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": UA}), timeout=60).read()
+    ver = get(ENR + "current_ver.txt").decode().strip()
+    if not ver.isdigit():
+        sys.exit(f"current_ver.txt is not a version number: {ver[:100]!r}")
+    folder = src if src.suffix == "" else src.parent
+    folder.mkdir(parents=True, exist_ok=True)
+    src = folder / "detailxlsx.zip"
+    src.write_bytes(get(f"{ENR}{ver}/reports/detailxlsx.zip"))
+    print(f"Downloaded version {ver} ({src.stat().st_size:,} bytes)")
 if src.is_dir():
     found = sorted([p for p in src.iterdir() if p.suffix.lower() in (".zip", ".xlsx") and "detail" in p.name.lower()],
                    key=lambda p: p.stat().st_mtime)
