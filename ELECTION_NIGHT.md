@@ -77,6 +77,12 @@ Use this for Texas, Maine, Alaska, Minnesota, Kansas, Nebraska, Kentucky, and an
 4. **AP**: its county data loads in the browser, not in the page, and the AP data is licensed; do not scrape it. Copying a visible table is fine, but the paste box has not been tested on AP's layout.
 5. Need vote counts, not percentages. Percent-only tables do not work.
 
+### Fastest paste route: Excel file + one command (`scripts/import_paste.py`)
+Copy a county table (USA Today works well: County | "NN% in" | one column per candidate | Other | Vote margin | Population), paste it into **Sheet1** of `C:\Users\appar\Downloads\election_night\copypaste.xlsx` (replace the old table, keep the header row), save, then run `python scripts/import_paste.py`. It can stay open in Excel (it reads the file in one go, but save first).
+- It guesses the state from the county names and prints it (override with `--state TX`), uses the 2026 nominees it knows (TX Talarico/Paxton, MN Flanagan/Tafoya, ME Jackson/Collins, KS Hamilton/Marshall, MI El-Sayed/Rogers, KY Booker/Barr, FL, OH, SC, IA) when the header names match, and prints "Using X as Democratic and Y as Republican". Otherwise pass `--dem LASTNAME --rep LASTNAME` as written in the header. Check that line: a swap flips the state.
+- "Other" and any other candidate column count as other. Counts only, not percentages. Add `--no-load` to preview. Loads to Supabase only when votes exist.
+- Tested only on the zero-vote Texas table (254 of 254 counties matched). Never tested on real counts or other states' layouts; if a layout differs it stops with an error. Loading Texas this way and through civicAPI writes the same rows (last one wins).
+
 ### Paste into the site (shows on your own screen only)
 1. Open the site, click **+ Add 2026 results**.
 2. Pick the **state** and **contest** (Senate, regular or special; Florida and Ohio are special). Paste the table, header row included.
