@@ -44,9 +44,9 @@ def clean(s):
 
 def rows_from_race(d, po):
     """County rows for one race. Parties come from civicAPI; every candidate who is not Democratic/Republican is 'other'."""
-    regions = [r for r in (d.get("region_results") or {}).values() if r.get("type") == "County"]
+    regions = [r for r in (d.get("region_results") or {}).values() if r.get("type") in ("County", "Parish")]  # Louisiana's regions are parishes
     if not regions:
-        raise ValueError("no County regions")
+        raise ValueError("no County/Parish regions")
     # a county with no code in the feed gets one from its alphabetical position (county FIPS run 001, 003, ... alphabetically)
     order = sorted(regions, key=lambda r: r["name"].lower())
     out, dem_name, rep_name = [], "", ""
