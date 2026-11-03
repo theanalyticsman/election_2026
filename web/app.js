@@ -386,21 +386,25 @@ function liveSenateRows() {
   for (const c of cs) { states.add(c.state_po); for (const r of c.rows) m.set(r.fips, { d: r.d, r: r.r, o: r.o, state: c.state_po }); }
   return { m, states };
 }
+// example scenario for the 'vs polls' view before real results exist: every county misses the poll by one shared amount plus a fixed bit of county noise
+let demoShift = 3;
+const demoNoise = id => { const u = Math.sin(+id * 12.9898) * 43758.5453; return ((u - Math.floor(u)) - 0.5) * 6; };
+const demoDiff = d => demoShift + demoNoise(d.id);
 async function renderPoll() {
   await Promise.all([ensureAffinity(), ensurePolls()]);
   const { m: live, states } = liveSenateRows();
   const hasData = states.size > 0;
-  const view = hasData && v26 !== 'model' ? 'vs' : 'model';
+  const view = hasData && v26 !== 'model' ? 'vs' : (v26 === 'vs' ? 'demo' : 'model');
   $('v26model').classList.toggle('on', view === 'model');
-  $('v26vs').classList.toggle('on', view === 'vs');
-  $('v26vs').disabled = !hasData;
-  $('v26vs').textContent = hasData ? `Actual vs polls (${states.size} state${states.size === 1 ? '' : 's'})` : 'Actual vs polls';
+  $('v26vs').classList.toggle('on', view !== 'model');
+  $('v26vs').textContent = hasData ? `Actual vs polls (${states.size} state${states.size === 1 ? '' : 's'})` : 'Actual vs polls (example)';
   cur = { poll: true, view, live };
   let have = 0;
   svg.selectAll('path.county').style('display', d => (d.plan === 'ak13') ? 'none' : null).style('fill', d => {
     const e = pollExpected(d);
     if (!e) return 'var(--nodata)';
     if (view === 'model') { have++; return colorResult(e.expected); }
+    if (view === 'demo') { have++; return colorPerf(demoDiff(d)); }
     const r = live.get(d.id), t = r ? r.d + r.r + r.o : 0;
     if (!(t > 0)) return 'var(--nodata)';
     have++; return colorPerf((r.d - r.r) / t * 100 - e.expected);
@@ -409,6 +413,12 @@ async function renderPoll() {
     const stops = d3.range(0, 1.001, .1).map(t => colorResult(-60 + t * 120));
     $('legend').innerHTML = `<span>R +60</span><span class="bar" style="background:linear-gradient(90deg,${stops.join(',')})"></span><span>D +60</span><span>(expected margin, points)</span>`;
     $('status').textContent = `Polling model: 2026 Senate polling average + each county's usual lean = expected margin. ${have.toLocaleString()} counties in ${pollByState ? pollByState.size : 0} polled states; grey = no poll average. Add results (+ Add 2026 results) to compare them with this. Expect a typical miss of about 5 points, mostly from the poll itself.`;
+  } else if (view === 'demo') {
+    const stops = d3.range(0, 1.001, .1).map(t => colorPerf(-15 + t * 30));
+    $('legend').innerHTML = `<span>More R than polls imply</span><span class="bar" style="background:linear-gradient(90deg,${stops.join(',')})"></span><span>More D than polls imply</span><span>(points)</span>`;
+    const lab = demoShift === 0 ? 'exactly as polled' : `${Math.abs(demoShift)} pts more ${demoShift > 0 ? 'Democratic' : 'Republican'} than polled`;
+    $('status').innerHTML = `<b>EXAMPLE ONLY, not real results.</b> No 2026 results are in yet, so this shows how the view will look: every state comes in <b id="demoLab">${lab}</b>, plus some random county-to-county variation. <input id="demoRng" type="range" min="-10" max="10" step="1" value="${demoShift}" style="vertical-align:middle;width:160px"> Real results (pasted or from the state feeds) replace this automatically.`;
+    $('demoRng').oninput = e => { demoShift = +e.target.value; renderPoll(); };
   } else {
     const stops = d3.range(0, 1.001, .1).map(t => colorPerf(-15 + t * 30));
     $('legend').innerHTML = `<span>More R than polls imply</span><span class="bar" style="background:linear-gradient(90deg,${stops.join(',')})"></span><span>More D than polls imply</span><span>(points)</span>`;
@@ -423,7 +433,10 @@ function showPollTip(e, d) {
     const r = cur.live && cur.live.get(d.id), tot = r ? r.d + r.r + r.o : 0;
     const miss = Math.sqrt(Number(x.p.err) ** 2 + 2.5 ** 2);
     let head, actualRow = '';
-    if (cur.view === 'vs' && tot > 0) {
+    if (cur.view === 'demo') {
+      const diff = demoDiff(d);
+      head = `Example only: ${diff >= 0 ? 'more Democratic' : 'more Republican'} than the polls imply by ${Math.abs(diff).toFixed(1)} pts`;
+    } else if (cur.view === 'vs' && tot > 0) {
       const actual = (r.d - r.r) / tot * 100, diff = actual - x.expected;
       head = `${diff >= 0 ? 'More Democratic' : 'More Republican'} than the polls imply by ${Math.abs(diff).toFixed(1)} pts`;
       actualRow = `<tr><td>Actual margin</td><td class="pct">${sgn2(actual)}</td><td></td></tr>`;
