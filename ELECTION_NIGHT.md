@@ -55,6 +55,11 @@ https://results.texas-election.com loads in a real browser (it refused scripts w
 - Tomorrow: on the site choose the 2026 election (View/Change Election menu), Reports, County by County Canvass Report, EXCEL, Generate Report. Save into `C:\Users\appar\Downloads\election_night` and tell Claude. If it works, ask Claude to read it and write a Texas importer (the layout is unknown; Iowa's and Maine's importers are the template). If not, use E (paste), or ask Claude to read the page in the built-in browser.
 - Claude must not download files without your OK; you generate and save the report.
 
+## D4. civicAPI (https://civicapi.org): possible all-state live feed, UNVERIFIED
+Free, no API key, open to anyone (attribution required for non-personal projects: link to civicapi.org). Docs: https://civicapi.org/api-documentation. Endpoint seen: `GET https://civicapi.org/api/v2/race/search?startDate=2026-11-03&endDate=2026-11-03&country=US&province=IA&election_type=Statewide`. Races have candidates with party and votes, `percent_reporting`, and `has_breakdown` (a `region_results` list, probably counties/towns; layout not yet seen with real data). "Get Race by ID" returns one race.
+- On Nov 2 it already lists Nov 3, 2026 races for Iowa (Governor, Attorney General, etc.), but searches found **no U.S. Senate race** (searched Iowa by date, `election_type=Federal`, and `query=Senate`; only State Senate came back), and Iowa's Governor showed 53% reporting a day early, so treat the data as unvetted (unknown who supplies it).
+- Tomorrow evening: re-run the search for each Senate state; if the Senate races exist and `region_results` gives county vote counts, ask Claude to build a `scripts/fetch_civic.py` that loads them (GitHub Actions can probably run it). Cross-check against a state source before trusting it. Not used for anything yet.
+
 ## E. Every other state: copy a table and paste
 Use this for Texas, Maine, Alaska, Minnesota, Kansas, Nebraska, Kentucky, and any state not above. Several of these (TX, ME, AK, MN, MI's site) refuse scripts or sit behind a CAPTCHA; do not try to bypass that. Opening the page in your own browser and copying a table is fine.
 
