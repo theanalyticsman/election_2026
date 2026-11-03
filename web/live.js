@@ -80,9 +80,29 @@ function lvFallbackSplit(l) {
   const m = l.match(/^(.*?)\s+((?:[\d,.]+%?\s*)+)$/);
   return m ? [m[1].trim(), ...m[2].trim().split(/\s+/)] : [l];
 }
+// CNN's "Results by county" copies as one value per line: name, "Est. 100% in", then pct / votes for each candidate
+function lvParseStacked(lines) {
+  const isRep = l => /^(est\.?\s*)?[\d.]+%\s*(in|reporting)$/i.test(l);
+  const at = lines.map((l, i) => isRep(l) ? i : -1).filter(i => i > 0);
+  if (at.length < 3) return null;
+  const head = lines.slice(0, at[0] - 1).reverse().find(l => l.includes('\t'));
+  const names = head ? head.split('\t').map(x => x.trim()).filter(Boolean) : null;
+  const out = [];
+  at.forEach((i, k) => {
+    const end = k + 1 < at.length ? at[k + 1] - 1 : lines.length;
+    const toks = lines.slice(i + 1, end);
+    const votes = [];
+    for (let j = 0; j + 1 < toks.length; j += 2) { const v = lvNum(toks[j + 1]); votes.push(String(isNaN(v) ? 0 : v)); }
+    out.push([lines[i - 1], lines[i].replace(/^est\.?\s*/i, '').replace(/\s*(in|reporting)$/i, ''), ...votes]);
+  });
+  const n = Math.max(...out.map(r => r.length - 2));
+  return [['County', '% in', ...Array.from({ length: n }, (_, c) => (names && names[c]) || 'Candidate ' + (c + 1))], ...out];
+}
 function lvParse(text) {
-  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  const lines = text.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(Boolean);
   if (!lines.length) return [];
+  const stacked = lvParseStacked(lines);
+  if (stacked) return stacked;
   const tabs = lines.filter(l => l.includes('\t')).length > lines.length / 2;
   // CSV when every line splits into the same number (3+) of comma fields; thousands separators would make the counts vary
   const csvCounts = tabs ? [] : lines.map(l => lvSplitCsv(l).length);
