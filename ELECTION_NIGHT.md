@@ -8,7 +8,7 @@ The map's 2026 tab reads 2026 rows from the Supabase `county_results` table ever
 |---|---|---|
 | Florida, Ohio | GitHub Actions "Live state results" (every 5 min, 6pm ET Nov 3 to 5am ET Nov 4) | `python scripts/fetch_fl.py`, `python scripts/fetch_oh.py` (local test: add `--no-load`) |
 | South Carolina | Blocks GitHub's servers, so run on your PC | `.\scripts\loop_sc.ps1` (every 5 min, Ctrl+C to stop) |
-| Michigan | Download the county file from Michigan's results site, then run it | `python scripts/import_mi.py "C:\Users\appar\Downloads\<file>.txt"` |
+| Michigan | Download the county file from Michigan's results site into `C:\Users\appar\Downloads\election_night`, then run it | `python scripts/import_mi.py` (uses the newest Michigan file in that folder; you can also pass a file or folder path) |
 
 - Actions needs the repo secret `SUPABASE_ACCESS_TOKEN`. You can also press "Run workflow" on the Actions tab.
 - Every loader skips loading while no votes are counted. Add `--no-load` to preview.

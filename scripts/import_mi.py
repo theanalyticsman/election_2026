@@ -15,12 +15,21 @@ FIELDS = ["year", "office", "race", "state_po", "county_fips", "county_name", "d
           "rep_votes", "other_votes", "total_votes", "dem_candidate", "rep_candidate"]
 
 ap = argparse.ArgumentParser()
-ap.add_argument("file")
+ap.add_argument("file", nargs="?", default=str(Path.home() / "Downloads" / "election_night"),
+                help="results file, or a folder (default ~/Downloads/election_night): the newest .txt in it is used")
 ap.add_argument("--no-load", action="store_true")
 ap.add_argument("--allow-any-date", action="store_true", help="testing only: accept a primary file")
 a = ap.parse_args()
 
-lines = Path(a.file).read_text(encoding="utf-8-sig", errors="replace").splitlines()
+src = Path(a.file)
+if src.is_dir():
+    # other states' downloads can share the folder, so prefer Michigan's county file name, else any .txt
+    found = sorted(src.glob("*MI_CENR_BY_COUNTY*.txt") or src.glob("*.txt"), key=lambda p: p.stat().st_mtime)
+    if not found:
+        sys.exit(f"No .txt file in {src}. Download Michigan's county results file into that folder first.")
+    src = found[-1]
+print(f"Reading {src.name} (saved {__import__('datetime').datetime.fromtimestamp(src.stat().st_mtime):%H:%M:%S})")
+lines = src.read_text(encoding="utf-8-sig", errors="replace").splitlines()
 hi = next(i for i, l in enumerate(lines) if l.startswith("ElectionDate"))
 rows = list(csv.DictReader(lines[hi:], delimiter="\t", restval=""))
 sen = [r for r in rows if "UNITED STATES SENATOR" in r["OfficeDescription"].upper()]
