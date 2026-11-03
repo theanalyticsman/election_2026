@@ -8,7 +8,7 @@ spot-check a few counties against a state source. The race IDs below were found 
 (its search endpoint does not list U.S. Senate races). Only County-type regions are used (Maine's also lists townships).
 Attribution is required for non-personal projects: the site's Guide/footer should link to civicapi.org.
 """
-import argparse, csv, json, re, subprocess, sys, time, urllib.request
+import argparse, csv, json, re, subprocess, sys, time, urllib.error, urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,8 +25,17 @@ DEFAULT = ["TX", "MN", "ME", "KS", "NE", "MI"]
 
 def get_race(race_id):
     req = urllib.request.Request(f"https://civicapi.org/api/v2/race/{race_id}", headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.load(r)
+    for attempt in range(3):  # civicAPI returned a one-off 502 during testing; retry server errors and timeouts
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code < 500 or attempt == 2:
+                raise
+        except (urllib.error.URLError, TimeoutError):
+            if attempt == 2:
+                raise
+        time.sleep(3 * (attempt + 1))
 
 
 def clean(s):
