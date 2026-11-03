@@ -9,9 +9,9 @@ The 2026 tab reads 2026 rows from the Supabase `county_results` table every minu
 | State | Route | Section |
 |---|---|---|
 | Florida, Ohio | Automatic (GitHub Actions, every 5 min) | A |
-| South Carolina | Loop on your PC | B |
+| South Carolina | Loop on your PC (same loop as Iowa) | B |
 | Michigan | Download county file, run script | C |
-| Iowa | Automatic in GitHub Actions (if GitHub's servers are allowed), or one command locally | D |
+| Iowa | Loop on your PC (downloads the workbook itself) | D |
 | Texas, Maine, Alaska, Minnesota, Kansas, Nebraska, Kentucky, and every other state | Copy a county table, paste | E |
 
 Common setup for any local run: the Supabase CLI must be logged in and linked (`supabase db query --linked` is what `scripts/load_supabase.py` uses). Set `SKIP_MIGRATIONS=1` to skip re-applying table setup. Every loader prints "No votes counted yet" and loads nothing until votes exist. Add `--no-load` to preview without loading.
@@ -23,7 +23,7 @@ Common setup for any local run: the Supabase CLI must be logged in and linked (`
 
 ## B. South Carolina: loop on your PC
 - SC's site returns an empty response to GitHub's servers, so it only works from your own connection.
-- Run `.\scripts\loop_sc.ps1` in PowerShell (every 5 min; Ctrl+C stops it; `-Minutes 3` changes the interval). PC must stay awake and online.
+- Run `.\scripts\loop_local.ps1` in PowerShell. It handles **South Carolina and Iowa** together every 5 min (Ctrl+C stops it; `-Minutes 3` changes the interval). PC must stay awake and online. (`loop_sc.ps1` is the older South Carolina-only version.)
 - One-off: `python scripts/fetch_sc.py`. Party comes from the feed. Regular Senate race.
 
 ## C. Michigan: download file, run script
@@ -34,13 +34,13 @@ Common setup for any local run: the Supabase CLI must be logged in and linked (`
 - I have only seen the primary file's layout. Check the party labels (DEMOCRATIC / REPUBLICAN) when the general file appears; if the layout differs the script will stop with an error to fix.
 - Regular Senate race.
 
-## D. Iowa: download workbook, run script
-Iowa's results site (Clarity ENR, election 127077) accepts scripts from my PC, so no manual download is needed. The Actions workflow also has an "Iowa" step that runs the same command every 5 minutes. **Unverified:** South Carolina's Clarity site refused GitHub's servers, so Iowa may too. After the first Run workflow, open the Iowa step: if it fails with an empty/blocked response, run the command below on your PC instead (it is a red step, which is harmless to the other states).
+## D. Iowa: loop on your PC (or run once)
+Iowa's results site (Clarity ENR, election 127077) accepts scripts from my PC, so no manual download is needed. GitHub's servers get an empty response from Iowa's site (tested: `current_ver.txt is not a version number: ''`), same as South Carolina, so Iowa runs on your PC, not in Actions.
 
 1. Run `python scripts/import_ia.py --download`. It reads https://electionresults.iowa.gov/IA/127077/current_ver.txt (the current version number), downloads `.../127077/<version>/reports/detailxlsx.zip` into `C:\Users\appar\Downloads\election_night`, and loads the Senate sheet. (Tested: version 383162, same 220,538-byte file as the manual download.)
 2. Re-run the same command for each update (the version number changes as results update, which is why the script looks it up instead of using a fixed link; a pasted link like `.../127077/383162/reports/detailxlsx.zip` goes stale).
 3. Without `--download` it reads the newest detail zip/xlsx already in the folder, if you saved one by hand. It reads the sheet named "United States Senator"; `--dem Turek --rep Hinson` are the defaults, Laehn and write-ins count as other.
-- For a repeating run, use a PowerShell loop like `loop_sc.ps1` (copy it and swap in `python scripts/import_ia.py --download`).
+- For a repeating run, `.\scripts\loop_local.ps1` (see B) already includes Iowa.
 - The workbook has no party field, hence the name flags. Tested only on the zero-vote pre-election file: 99 counties, correct codes (Polk 19153, Johnson 19103). Not yet tried on real counts.
 - Regular Senate race.
 
