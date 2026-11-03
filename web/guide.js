@@ -12,7 +12,7 @@
     <li><b>Prepare:</b> open <b>Affinity</b> and click a state. The panel lists the 10 counties that best mirror that state: the ones to watch.</li>
     <li><b>Enter results:</b> click <b>+ Add 2026 results</b>, choose the state and contest, and paste a county table from NYT, CNN or a state site. Check the column guesses, then <b>Add to map</b>.</li>
     <li><b>Read the state:</b> click the state again. The box at the top of the panel shows a projected statewide margin built from the counties already in, next to what has actually been counted.</li>
-    <li><b>Spot surprises:</b> switch to <b>Vs expected</b> to see which counties are running ahead or behind their usual pattern.</li>
+    <li><b>Spot surprises:</b> on the 2026 tab, <b>Actual vs polls</b> shows which counties are running ahead or behind what the polls imply.</li>
     <li><b>Update:</b> re-paste a state whenever numbers change. It replaces that state's earlier rows.</li>
   </ol>
 
@@ -20,7 +20,6 @@
   <table class="g">
     <tr><th>Historical</th><td>Each county coloured by margin: red is Republican, blue is Democratic, white is even. The colours saturate at 60 points. Pick office, year, and (for Senate or House) regular or special races. Hover for percentages and vote counts.</td></tr>
     <tr><th>Affinity</th><td>How closely each county tracks its state. Dark blue counties are the best bellwethers; pale ones are far from the state's result. Based on President and Senate in 2020, 2022 and 2024.</td></tr>
-    <tr><th>Vs expected</th><td>For a chosen election: actual margin compared with what the county <i>should</i> do, given the state's margin and the county's usual lean. Blue means more Democratic than expected, red more Republican. Meant for 2026; for 2020&ndash;2024 it is quiet because those years built the scores.</td></tr>
     <tr><th>2026</th><td>The landing tab. With no results added, it shows the <b>polling model</b>: the statewide 2026 Senate poll average plus each county's usual lean gives an expected margin for every county (grey states have no poll average). Once you add results it switches to <b>Actual vs polls</b>: each county coloured by how far its real margin is from that expectation. Blue means more Democratic than the polls imply, red more Republican. Toggle between the two at the top. Before any results exist, <b>Actual vs polls (example)</b> shows a clearly labelled simulated scenario with a slider, so you can see how the view reads. The poll average weights recent polls, larger samples and non-partisan sponsors more, and sets undecided voters aside. Expect a typical miss of about 5 points, mostly from the poll itself; the county pattern given the state result is good to about 2&ndash;3.</td></tr>
     <tr><th>Swing</th><td>Compares two elections (A then B), county by county. Blue means the county moved toward Democrats, red toward Republicans, saturating at 25 points. You can compare different offices, such as 2020 President with 2020 Senate.</td></tr>
   </table>
