@@ -44,6 +44,12 @@ Iowa's results site (Clarity ENR, election 127077) accepts scripts from my PC, s
 - The workbook has no party field, hence the name flags. Tested only on the zero-vote pre-election file: 99 counties, correct codes (Polk 19153, Johnson 19103). Not yet tried on real counts.
 - Regular Senate race.
 
+## D2. Maine: workbook, only if the state posts one
+Maine's Secretary of State posts a "US Senator" results workbook (the 2024 one was `US Senator FINAL-Corrected 20241205.xlsx`, posted weeks later, so a 2026 file will probably NOT exist on election night; use E meanwhile). maine.gov refuses scripts (403), so download it by hand into `C:\Users\appar\Downloads\election_night`, then run `python scripts/import_me.py`.
+- The file is one row per **municipality** with a 3-letter county code (AND, ARO, CUM...). The script adds towns up into the 16 counties. Checked on the 2024 file: the county subtotals match the file's own, and the 16 counties plus the "STATE UOCAVA" line (6,434 absentee votes with no county, left out of the map) add to the statewide 821,072.
+- Parties come from the file's party row. In 2024 that put Angus King (an Independent) outside the Democratic column; for 2026 check the printed "Candidates" line and pass `--dem LASTNAME --rep LASTNAME` if the Democrat is not marked "Democratic".
+- It refuses a file with "2024" in its name unless `--allow-old` (testing only). Not tested on a 2026 file, since none exists yet.
+
 ## E. Every other state: copy a table and paste
 Use this for Texas, Maine, Alaska, Minnesota, Kansas, Nebraska, Kentucky, and any state not above. Several of these (TX, ME, AK, MN, MI's site) refuse scripts or sit behind a CAPTCHA; do not try to bypass that. Opening the page in your own browser and copying a table is fine.
 
