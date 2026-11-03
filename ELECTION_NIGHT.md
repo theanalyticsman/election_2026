@@ -50,6 +50,11 @@ Maine's Secretary of State posts a "US Senator" results workbook (the 2024 one w
 - Parties come from the file's party row. In 2024 that put Angus King (an Independent) outside the Democratic column; for 2026 check the printed "Candidates" line and pass `--dem LASTNAME --rep LASTNAME` if the Democrat is not marked "Democratic".
 - It refuses a file with "2024" in its name unless `--allow-old` (testing only). Not tested on a 2026 file, since none exists yet.
 
+## D3. Texas: county report (UNVERIFIED, check tomorrow night)
+https://results.texas-election.com loads in a real browser (it refused scripts with a 403, but the built-in browser opened it fine). Its **County** tab shows one county at a time (254 clicks, not useful). Its **Reports** tab (https://results.texas-election.com/reports) has a "County by County Canvass Report" with a PDF or EXCEL option and a Generate Report button. That would be a one-file, all-counties download, but it was only seen while the site showed the 2024 election, so it is **unknown whether it works for a live election** (it may only be offered for finished elections).
+- Tomorrow: on the site choose the 2026 election (View/Change Election menu), Reports, County by County Canvass Report, EXCEL, Generate Report. Save into `C:\Users\appar\Downloads\election_night` and tell Claude. If it works, ask Claude to read it and write a Texas importer (the layout is unknown; Iowa's and Maine's importers are the template). If not, use E (paste), or ask Claude to read the page in the built-in browser.
+- Claude must not download files without your OK; you generate and save the report.
+
 ## E. Every other state: copy a table and paste
 Use this for Texas, Maine, Alaska, Minnesota, Kansas, Nebraska, Kentucky, and any state not above. Several of these (TX, ME, AK, MN, MI's site) refuse scripts or sit behind a CAPTCHA; do not try to bypass that. Opening the page in your own browser and copying a table is fine.
 
