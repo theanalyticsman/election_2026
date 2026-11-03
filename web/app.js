@@ -94,6 +94,7 @@ async function init() {
     .on('mousemove', (e, d) => showTip(e, d)).on('mouseleave', () => $('tip').style.display = 'none')
     .on('click', (e, d) => selectState(d));
   view.append('path').attr('class', 'state').attr('d', path(topojson.mesh(us, us.objects.states)));
+  view.append('path').attr('id', 'cdLines').attr('class', 'cd');
 
   // zoom/pan: lines use non-scaling strokes (see CSS) so county and state borders stay crisp at any zoom
   const zoom = d3.zoom().scaleExtent([1, 40]).translateExtent([[0, 0], [975, 610]])
@@ -115,6 +116,7 @@ const planOf = year => year <= 2020 ? 'ak13' : 'ak22';
 let cur = {};
 async function render() {
   $('status').textContent = 'Loading…';
+  updateCdLines();
   if (mode === 'affinity') return renderAffinity();
   if (mode === 'poll') return renderPoll();
   const race = $('race').value;
@@ -157,6 +159,24 @@ async function ensureAffinity() {
   for (const r of m.values()) fipsToPo[r.county_fips.slice(0, 2)] = r.state_po;
 }
 const colorAff = d3.scaleSequential(t => d3.interpolateYlGnBu(1 - t)).domain([0, 30]).clamp(true);
+// ---- congressional district lines: drawn over the counties when viewing House results ----
+// map file by election year: 116th Congress maps for 2016-2020, 119th for 2022-2024, 120th (post mid-decade redistricting) for 2026
+const cdProj = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]), cdGeo = d3.geoPath(cdProj), cdCache = new Map();
+const cdFile = y => y >= 2026 ? 'cd120' : y >= 2022 ? 'cd119' : 'cd116';
+const cdLabel = { cd116: '116th Congress maps (used for 2018 and 2020; 2016 had a few differences)', cd119: '119th Congress maps (2024; a few states used older maps in 2022)', cd120: '120th Congress maps (2026, including mid-decade redistricting)' };
+async function updateCdLines() {
+  const note = $('cdnote'), line = svg.select('#cdLines');
+  const want = (mode === 'result' && $('aOffice').value === 'house') ? cdFile(+$('aYear').value) : null;
+  if (!want) { line.attr('d', null); note.textContent = ''; return; }
+  if (!cdCache.has(want)) {
+    try { cdCache.set(want, cdGeo(await d3.json(want + '.json'))); } catch (e) { console.warn('district lines unavailable', e); return; }
+  }
+  if (mode === 'result' && $('aOffice').value === 'house' && cdFile(+$('aYear').value) === want) {
+    line.attr('d', cdCache.get(want));
+    note.textContent = 'Dashed lines: congressional districts, ' + cdLabel[want] + '. House results are summed by county, so a county split between districts shows one combined colour.';
+  }
+}
+
 async function renderAffinity() {
   await ensureAffinity();
   cur = { affinity: true };

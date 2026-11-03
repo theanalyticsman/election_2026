@@ -25,7 +25,9 @@
   :root { --cline:rgba(0,0,0,.3); }
   @media (prefers-color-scheme: dark) { :root { --cline:rgba(255,255,255,.35); } }
   svg { cursor:grab; touch-action:none; } svg:active { cursor:grabbing; }
-  path.county, path.state { vector-effect:non-scaling-stroke; }
+  path.county, path.state, path.cd { vector-effect:non-scaling-stroke; }
+  path.cd { fill:none; stroke:#f0a500; stroke-width:1.8px; stroke-dasharray:7 3; stroke-opacity:.95; pointer-events:none; }
+  #cdnote { padding:0 16px 8px; font-size:12px; color:var(--muted); }
   path.county { stroke:var(--cline); stroke-width:.4px; }
   path.county:hover { stroke:var(--ink); stroke-width:1.5px; }
   path.state { fill:none; stroke:var(--ink); stroke-opacity:.85; stroke-width:1.2px; stroke-linejoin:round; pointer-events:none; }
@@ -124,6 +126,7 @@
   <section id="guide" hidden></section>
   <div id="legend"></div>
   <div id="status">Loading…</div>
+  <div id="cdnote" class="small muted"></div>
 </main>
 <div id="tip"></div>
 
