@@ -6,7 +6,7 @@ Static map (`web/`) reading county results from Supabase table `county_results`.
 - `scripts/build_county_results.py` – aggregate to `data/processed/county_results.csv`
 - `scripts/load_supabase.py` – create the table (migration in `supabase/migrations/`) and upsert rows via `supabase db query --linked`
 - `scripts/fetch_fl.py` – pull Florida's official election-night files (2026 U.S. Senate special) and load county rows; re-run every few minutes (`--no-load` to preview)
-- `scripts/fetch_sc.py`, `scripts/fetch_oh.py` – same for South Carolina (Clarity JSON) and Ohio (official XML feed); both Senate
+- `scripts/fetch_sc.py`, `scripts/fetch_oh.py` – same for South Carolina (Clarity JSON) and Ohio (official XML feed); both Senate. South Carolina blocks GitHub's servers, so run `scripts/loop_sc.ps1` on your own PC instead
 - `scripts/import_2026.py results.csv` – load 2026 results (see `data/2026_template.csv`); re-run as counts update
 - `scripts/affinity.py` – county-vs-state affinity scores (Affinity view); `scripts/check_2026.py` – after importing 2026, test whether the bellwethers held
 - `scripts/backtest.py` – hold-out test: how well do a few bellwether counties project a state's result (scores from 2020+2022, tested on 2024)
