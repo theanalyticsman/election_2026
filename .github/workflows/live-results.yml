@@ -1,11 +1,11 @@
-# Pulls official state results into Supabase every 5 minutes on election night (Nov 3-4, 2026, UTC).
+# Pulls official state results into Supabase every 10 minutes on election night (Nov 3-4, 2026, UTC).
 # Needs repo secrets: SUPABASE_ACCESS_TOKEN (and SUPABASE_DB_PASSWORD if `supabase link` asks for it).
 name: Live state results
 
 on:
   schedule:
-    - cron: '*/5 23 3 11 *'     # Nov 3, 6pm ET onward (polls close 7pm ET in FL/SC, 7:30pm in OH)
-    - cron: '*/5 0-9 4 11 *'    # through 5am ET on Nov 4
+    - cron: '*/10 23 3 11 *'     # Nov 3, 6pm ET onward (polls close 7pm ET in FL/SC, 7:30pm in OH)
+    - cron: '*/10 0-9 4 11 *'    # through 5am ET on Nov 4
   workflow_dispatch:
 
 permissions:

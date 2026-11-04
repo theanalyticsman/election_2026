@@ -1,7 +1,7 @@
-# Fetches South Carolina's official results every 5 minutes and loads them to Supabase.
+# Fetches South Carolina's official results every 10 minutes and loads them to Supabase.
 # Run from the project folder in PowerShell:  .\scripts\loop_sc.ps1   (Ctrl+C to stop)
 # Needs this PC awake and the Supabase CLI logged in / linked (the same setup as load_supabase.py).
-param([int]$Minutes = 5)
+param([int]$Minutes = 10)
 $env:SKIP_MIGRATIONS = "1"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 while ($true) {

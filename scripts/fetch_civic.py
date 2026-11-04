@@ -9,6 +9,7 @@ spot-check a few counties against a state source. The race IDs below were found 
 Attribution is required for non-personal projects: the site's Guide/footer should link to civicapi.org.
 """
 import argparse, csv, json, re, subprocess, sys, time, urllib.error, urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -28,7 +29,7 @@ def get_race(race_id):
     req = urllib.request.Request(f"https://civicapi.org/api/v2/race/{race_id}", headers={"User-Agent": UA})
     for attempt in range(3):  # civicAPI returned a one-off 502 during testing; retry server errors and timeouts
         try:
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with urllib.request.urlopen(req, timeout=20) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:
             if e.code < 500 or attempt == 2:
@@ -88,18 +89,27 @@ def main():
     for po in states:
         if po not in IDS:
             print(f"{po}: no civicAPI race ID known; skipped")
-            continue
+    todo = [po for po in states if po in IDS]
+
+    def one(po):
         try:
-            got = rows_from_race(get_race(IDS[po]), po)
+            return po, rows_from_race(get_race(IDS[po]), po), None
         except Exception as e:  # one state failing should not stop the rest
-            print(f"{po}: failed ({e})")
+            return po, None, e
+
+    # five requests at a time: a full sequential run took over 6 minutes when civicAPI was slow, longer than the refresh interval
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        results = {po: (got, err) for po, got, err in pool.map(one, todo)}
+    for po in todo:  # report in list order
+        got, err = results[po]
+        if err:
+            print(f"{po}: failed ({err})")
             continue
         t = sum(r["total_votes"] for r in got)
         print(f"{po}: {len(got)} counties, {t:,} votes (D {sum(r['dem_votes'] for r in got):,}, R {sum(r['rep_votes'] for r in got):,}); "
               f"{got[0]['dem_candidate']} (D) vs {got[0]['rep_candidate']} (R)")
         if t > 0:  # only states with counted votes are loaded
             rows += got
-        time.sleep(0.4)
     with open(OUT, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, FIELDS); w.writeheader(); w.writerows(rows)
     if a.no_load or not rows:
