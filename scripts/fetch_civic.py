@@ -1,7 +1,7 @@
 """Fetch 2026 U.S. Senate county results from civicAPI (https://civicapi.org, free, no key) and load them.
 
 Usage: python scripts/fetch_civic.py [STATE ...] [--no-load]
-Default states: the competitive races this project tracks that civicAPI lists (FL SC IA TX ME MI MN NE KS; Ohio and Alaska
+Default states: the competitive races this project tracks that civicAPI lists (FL SC IA TX ME MI MN NE KS, plus KY and NH; Ohio and Alaska
 are not on civicAPI). FL, SC and IA also have their own fetchers; if both have votes, the last loader to run overwrites the
 same rows (they have matched so far). Pass other state codes by hand, e.g. `fetch_civic.py GA KY`.
 civicAPI says its data comes from Secretary of State sites, updated every 5-10 seconds; that is its own claim, so
@@ -23,7 +23,7 @@ IDS = {"FL": 87068, "SC": 87409, "TX": 87438, "IA": 87151, "ME": 87188, "MI": 87
        "MA": 87275, "NH": 87283, "NM": 87288, "NJ": 87302, "OR": 87374, "RI": 87396, "SD": 87446, "VA": 87472, "TN": 87475, "WV": 87477}
 SPECIAL = {"FL"}  # regular unless listed
 # the competitive Senate races this project tracks (Ohio and Alaska are not on civicAPI). Other states in IDS can still be passed by hand.
-DEFAULT = ["FL", "SC", "IA", "TX", "ME", "MI", "MN", "NE", "KS"]
+DEFAULT = ["FL", "SC", "IA", "TX", "ME", "MI", "MN", "NE", "KS", "KY", "NH"]  # KY and NH were kept at the user's request
 
 
 def get_race(race_id):
