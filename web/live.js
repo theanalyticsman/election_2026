@@ -50,8 +50,16 @@ function feedNote() {
   const stale = Object.values(FEED.contests).filter(c => feedStale(c)).map(c => c.state_po);
   return `Official state feed: ${st.join(', ')}${t ? ` (updated ${t})` : ''}.` + (stale.length ? ` <b style="color:#d4574a">Possibly stalled (no new votes in ${STALE_MIN}+ min): ${[...new Set(stale)].join(', ')}. Check NPR/AP.</b>` : '');
 }
-// poll for new counts every minute; only redraw when something changed
-setInterval(async () => { if (await feedRefresh()) await lvAfterChange(null); }, 60000);
+// new counts reach open pages two ways: a Supabase Realtime push when the loader writes rows (debounced, since one load touches
+// hundreds of rows), and a 30-second poll as the fallback in case the push connection drops. Only redraws when something changed.
+let feedBusy = false;
+async function feedTick() { if (feedBusy) return; feedBusy = true; try { if (await feedRefresh()) await lvAfterChange(null); } finally { feedBusy = false; } }
+setInterval(feedTick, 30000);
+try {
+  let t = null;
+  db.channel('county_results_live').on('postgres_changes', { event: '*', schema: 'public', table: 'county_results' },
+    () => { clearTimeout(t); t = setTimeout(feedTick, 4000); }).subscribe();
+} catch (e) { console.warn('realtime unavailable, polling only', e.message || e); }
 
 // ---- hooks used by app.js so 2026 behaves like any other year ----
 function liveAvailable() {
