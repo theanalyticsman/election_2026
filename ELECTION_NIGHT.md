@@ -8,22 +8,25 @@ The 2026 tab reads 2026 rows from the Supabase `county_results` table every minu
 
 | State | Route | Section |
 |---|---|---|
-| Florida, Ohio | Automatic (GitHub Actions, every 5 min) | A |
-| South Carolina | Loop on your PC (same loop as Iowa) | B |
-| Michigan | Download county file, run script | C |
-| Iowa | Loop on your PC (downloads the workbook itself) | D |
-| Texas, Maine, Alaska, Minnesota, Kansas, Nebraska, Kentucky, and every other state | Copy a county table, paste | E |
+| FL, SC, IA, TX, ME, MI, MN, NE, KS, KY, NH | **civicAPI**, automatic every 10 min (GitHub Actions and the PC loop) | D4 |
+| Ohio | Official feed, automatic (GitHub Actions every 10 min; also `python scripts/fetch_oh.py`). Not on civicAPI | A |
+| Florida | Official file too, but it stayed at 0 votes while civicAPI matched AP, so rely on civicAPI | A |
+| South Carolina, Iowa | Official feeds only work from your PC (`loop_local.ps1`); civicAPI covers them as well | B, D |
+| Michigan, Maine, Texas | Optional manual routes if civicAPI is wrong or stalled | C, D2, D3 |
+| Alaska, anything else | Copy a county table, paste | E |
+
+**Start of night checklist:** (1) run `.\scripts\loop_local.ps1` on the PC (every 10 min: SC, Iowa, civicAPI); (2) check the Actions tab that "Live state results" runs are happening; the SC step showing red there is expected; (3) cross-check one state against NPR/AP.
 
 Common setup for any local run: the Supabase CLI must be logged in and linked (`supabase db query --linked` is what `scripts/load_supabase.py` uses). Set `SKIP_MIGRATIONS=1` to skip re-applying table setup. Every loader prints "No votes counted yet" and loads nothing until votes exist. Add `--no-load` to preview without loading.
 
 ## A. Florida and Ohio: automatic
-- GitHub Actions workflow "Live state results" runs every 5 min from 6pm ET Nov 3 to 5am ET Nov 4. Needs the repo secret `SUPABASE_ACCESS_TOKEN`. You can also press **Run workflow** on the Actions tab. Each state is its own step, so one failing step does not stop the others (the South Carolina step is expected to fail there; see B).
+- GitHub Actions workflow "Live state results" runs every 10 min from 6pm ET Nov 3 to 5am ET Nov 4 (cron `*/10 23 3 11 *` and `*/10 0-9 4 11 *`, UTC). Needs the repo secret `SUPABASE_ACCESS_TOKEN`. You can also press **Run workflow** on the Actions tab. Each state is its own step, so one failing step does not stop the others (the South Carolina step is expected to fail there; see B).
 - Local equivalents: `python scripts/fetch_fl.py`, `python scripts/fetch_oh.py`.
 - Florida's feed has no party field: Nixon is D, Moody is R (`--dem` / `--rep` to change). Ohio's party comes from the feed. Both are the **special** Senate races. Ohio's XML feed says `IsTest=true` until real results post.
 
 ## B. South Carolina: loop on your PC
 - SC's site returns an empty response to GitHub's servers, so it only works from your own connection.
-- Run `.\scripts\loop_local.ps1` in PowerShell. It handles **South Carolina and Iowa** together every 5 min (Ctrl+C stops it; `-Minutes 3` changes the interval). PC must stay awake and online. (`loop_sc.ps1` is the older South Carolina-only version.)
+- Run `.\scripts\loop_local.ps1` in PowerShell. It handles **South Carolina, Iowa and civicAPI** together every 10 min (Ctrl+C stops it; `-Minutes 3` changes the interval). PC must stay awake and online. (`loop_sc.ps1` is the older South Carolina-only version.)
 - One-off: `python scripts/fetch_sc.py`. Party comes from the feed. Regular Senate race.
 
 ## C. Michigan: download file, run script
@@ -63,12 +66,16 @@ Free, no API key, open to anyone (attribution required for non-personal projects
   - **Not found** in that ID range: Ohio and Alaska (and AL, AR, OK, MS, WY); they may sit at other IDs. An earlier version of this note said Iowa's Senate race was missing; it is there (87151), the search endpoint just does not list it.
 - Their FAQ (https://civicapi.org/faq) says the data is aggregated from the Secretary of State "or equivalent election body such as state/county boards" (local media only for some countries and small elections), is updated every 5-10 seconds during active elections, and is shown "exactly as reported by official sources" with a note to verify critical numbers with the official authority. That is their own claim; not independently checked.
 - Not verified: how fast it actually updates, whether `region_results` fills with county votes during a live count, and whether Maine's 513 regions are towns with no county code. Iowa's Governor race showed 53% reporting on Nov 2, so treat anything here as unvetted and cross-check against a state source.
-- **Built (Nov 3): `python scripts/fetch_civic.py [STATE ...] [--no-load]`.** Default states TX MN ME KS NE MI (the ones with no official route). Uses only County-type regions (Maine also lists 497 townships), `fips` from the feed (a county with none, e.g. 3 in Minnesota, gets one from its alphabetical position), and party from the feed (Democratic / Republican; everything else is other). Loads only states with counted votes. Tested on today's zeros and on a made-up race with a missing county code; **never tested on real counts**. Pass FL/OH/SC/IA only to compare, since the last loader to run overwrites the same rows.
-- Caveats: civicAPI's Nebraska race lists **no Democratic-party candidate**, so Nebraska would load D = 0 against Ricketts; check Nebraska's real candidates before trusting it (an independent challenger would count as "other" in this project's model). Spot-check a few counties against a state site once votes appear. Attribution: link to civicapi.org somewhere on the site (not added yet).
-- Running it: not scheduled. To run it every 5 minutes either add a step to `.github/workflows/live-results.yml` (unknown whether GitHub's servers are allowed; check with Run workflow, like SC and Iowa which were blocked) or add it to `scripts/loop_local.ps1`.
+- **Built and in use: `python scripts/fetch_civic.py [STATE ...] [--no-load]`.** Default states (the competitive Senate races): FL SC IA TX ME MI MN NE KS KY NH (KY and NH kept at the user's request; GA and VA were removed). Other IDs above can be passed by hand. It fetches 5 states at a time, retries server errors 3 times, uses only County/Parish regions, takes `fips` from the feed, party from the feed (everything not D/R is other), and loads only states with counted votes. It runs every 10 min in the Actions workflow and in `loop_local.ps1`.
+- **Cross-checks so far:** Florida matched AP/NPR on election night while the official Florida file stayed at 0. Kentucky was far behind NPR/AP (civicAPI showed Barr 35,858 / Booker 21,112 at 4:41 PM PT when NPR/AP had 151,882 / 125,673). Use NPR/AP as the truth when they disagree.
+- **Percent of votes in:** civicAPI's `percent_reporting` is stored per county (`pct_reporting`) and shown on hover; the projection uses it. The official FL/OH/SC feeds do not supply it.
+- **Stalled-data warning:** civicAPI keeps changing `last_updated` even when its totals freeze (Kentucky did). So each row stores `votes_changed_at`, set only when `total_votes` changes. If a contest's totals have not changed for 20 minutes the panel shows "Counts may be stalled" and the status line shows a red note. Check NPR/AP before trusting it.
+- **Projection (Guide explains it):** counted votes plus projected remaining votes from the affinity model, 2024 turnout and the poll average (or 2024 presidential margin if no poll). If the counted counties disagree sharply with a real poll average while little is in (early/mail ballots can all lean one way), it trusts them less. South Carolina went from D+4.2 to D+1.7 with this guard. The guard is untested against real polls.
+- **Not on civicAPI:** Ohio (use the official feed) and Alaska (paste).
+- Caveats: civicAPI's Nebraska race lists no Democratic-party candidate, so check Nebraska before trusting it. It is slow and returns 502s at peak; the fetcher retries. Attribution link to civicapi.org should be on the site (check the Guide).
 
 ## E. Every other state: copy a table and paste
-Use this for Texas, Maine, Alaska, Minnesota, Kansas, Nebraska, Kentucky, and any state not above. Several of these (TX, ME, AK, MN, MI's site) refuse scripts or sit behind a CAPTCHA; do not try to bypass that. Opening the page in your own browser and copying a table is fine.
+Use this for Alaska, any state not above, or any state where civicAPI is wrong or stalled. Percentages-only tables (NPR, or a table of "% in" and shares) cannot be used: the importer needs vote counts. Several of these (TX, ME, AK, MN, MI's site) refuse scripts or sit behind a CAPTCHA; do not try to bypass that. Opening the page in your own browser and copying a table is fine.
 
 ### Where to copy from (best first)
 1. **The state's own results site**, if it shows a county table with vote counts.
