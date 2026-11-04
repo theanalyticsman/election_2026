@@ -1,8 +1,8 @@
 """Fetch 2026 U.S. Senate county results from civicAPI (https://civicapi.org, free, no key) and load them.
 
 Usage: python scripts/fetch_civic.py [STATE ...] [--no-load]
-Default states: every civicAPI Senate race except FL, SC and IA, which have their own fetchers (Ohio is not on civicAPI);
-pass those three here only to compare, since the last loader to run overwrites the same rows.
+Default states: every civicAPI Senate race (Ohio is not on civicAPI). FL, SC and IA also have their own fetchers; if both
+have votes, the last loader to run overwrites the same rows (they have matched so far).
 civicAPI says its data comes from Secretary of State sites, updated every 5-10 seconds; that is its own claim, so
 spot-check a few counties against a state source. The race IDs below were found by scanning civicAPI on Nov 2 2026
 (its search endpoint does not list U.S. Senate races). Only County- and Parish-type regions are used (Maine's also lists townships).
@@ -21,7 +21,7 @@ IDS = {"FL": 87068, "SC": 87409, "TX": 87438, "IA": 87151, "ME": 87188, "MI": 87
        "GA": 87087, "NC": 87346, "KY": 87174, "CO": 87022, "DE": 87036, "ID": 87103, "IL": 87129, "LA": 87183, "MT": 87247,
        "MA": 87275, "NH": 87283, "NM": 87288, "NJ": 87302, "OR": 87374, "RI": 87396, "SD": 87446, "VA": 87472, "TN": 87475, "WV": 87477}
 SPECIAL = {"FL"}  # regular unless listed
-OFFICIAL = {"FL", "SC", "IA"}  # these have their own fetchers, so civicAPI does not overwrite them
+OFFICIAL = set()  # FL, SC and IA have their own fetchers too, but on Nov 3 the Florida official file stayed at 0 while civicAPI matched AP, so civicAPI covers every state; only states with counted votes are loaded
 DEFAULT = [po for po in IDS if po not in OFFICIAL]  # every other state civicAPI lists, contested ones first
 
 
