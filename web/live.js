@@ -359,19 +359,29 @@ function lvProjectOne(po, c) {
   const pm = (typeof pollAvg !== 'undefined' && pollAvg && c.office === 'senate') ? pollAvg.get(po + '|' + c.race) : null;
   const pollLine = pm ? ` Pre-election poll average: <b>${sgn(+pm.margin)}</b>.` : '';
   const countedLine = `<div class="small muted">Counted so far: <b>${sgn(counted)}</b> from ${n} of ${nState} counties (${T.toLocaleString()} votes).${pollLine}</div>`;
-  if (ests.length < 3) {
+  // outcome model (web/model.js): counted votes + projected remaining votes, with the poll average as a prior
+  const byFips = new Map(c.rows.map(r => [r.fips, r]));
+  const input = lvCounties(po).map(a => { const r = byFips.get(a.county_fips) || {}; return { fips: a.county_fips, d: r.d || 0, r: r.r || 0, o: r.o || 0, pct: r.pct, base: typeof priorBase !== 'undefined' && priorBase ? priorBase.get(a.county_fips) : null, lean: +a.lean, score: +a.score }; });
+  // the model already weights each county by how much of it is counted, so the cutoff is capped at 30% here (live counties are often only 5-40% in)
+  const hist = typeof priorMargin !== 'undefined' && priorMargin && priorMargin.has(po) ? priorMargin.get(po) : null;
+  const prior = pm ? { margin: +pm.margin, err: +pm.err } : (hist != null ? { margin: hist, err: 6.5 } : null);
+  const pr = PROJ.project(input, prior, { minPct: Math.min(minPct, 30) });
+  let model = '';
+  if (pr) {
+    const odds = Math.round(pr.pDem * 100), lead = pr.margin >= 0 ? 'Democrat' : 'Republican', leadOdds = pr.margin >= 0 ? odds : 100 - odds;
+    const early = pr.pctIn < 15 ? ' <b>Very early:</b> treat this as a rough guide.' : '';
+    model = `<div class="big">${sgn(pr.margin)}</div>
+    <div class="small">Projected final statewide margin, likely range ${sgn(pr.lo)} to ${sgn(pr.hi)}. The model gives the <b>${lead}</b> about a <b>${leadOdds >= 99 ? 'over 99' : leadOdds}%</b> chance of finishing ahead. About ${Math.round(pr.pctIn)}% of the expected vote is in${pr.pollUsed ? (pm ? ', and the poll average is blended in (it fades as counties report)' : ', and a weak prior from the 2024 presidential margin is blended in (it fades as counties report)') : ''}.${early}</div>`;
+  }
+  if (ests.length < 3 && !model) {
     return head + countedLine + `<p class="muted">Waiting for at least 3 bellwether counties (${ests.length} so far${ests.length < n ? '; others are below the % reporting cutoff or unscored' : ''}).</p>` + foot;
   }
-  const W = ests.reduce((s, e) => s + e.w, 0), mean = ests.reduce((s, e) => s + e.w * e.est, 0) / W;
-  const sd = Math.sqrt(ests.reduce((s, e) => s + e.w * (e.est - mean) ** 2, 0) / W);
-  const half = Math.max(1.5, sd), lo = mean - half, hi = mean + half;
-  const verdict = lo > 0 ? 'Leaning Democratic' : hi < 0 ? 'Leaning Republican' : 'Too close for the bellwethers to separate';
+  const W = ests.reduce((s, e) => s + e.w, 0), mean = ests.reduce((s, e) => s + e.w * e.est, 0) / (W || 1);
   const top = [...ests].sort((a, b) => b.w - a.w).slice(0, 5);
-  return head + `<div class="big">${sgn(mean)}</div>
-    <div class="small">Projected statewide margin, rough range ${sgn(lo)} to ${sgn(hi)}. <b>${verdict}.</b>${pm ? ` Poll average was ${sgn(+pm.margin)}, so this projection is ${Math.abs(mean - +pm.margin).toFixed(1)} pts ${mean >= +pm.margin ? 'more Democratic' : 'more Republican'}.` : ''}</div>` + countedLine +
-    `<table class="mini"><thead><tr><th>County</th><th>Now</th><th>Usual lean</th><th>Implies</th></tr></thead><tbody>` +
-    top.map(e => `<tr><td>${titleCase(e.name)}${e.pct != null ? ` <span class="muted">(${e.pct}% in)</span>` : ''}</td><td>${sgn(e.m)}</td><td>${sgn(e.lean)}</td><td><b>${sgn(e.est)}</b></td></tr>`).join('') + `</tbody></table>
-    <p class="small muted">Each reporting county implies a statewide margin: its margin now minus its usual lean. ${ests.length} counties are combined, weighted toward the best bellwethers. In the 2024 hold-out test, 5 bellwethers landed within about 1.5 points on average, but early or partial counts, and which counties report first, can push it further off.</p>` + foot;
+  const table = ests.length ? `<table class="mini"><thead><tr><th>County</th><th>Now</th><th>Usual lean</th><th>Implies</th></tr></thead><tbody>` +
+    top.map(e => `<tr><td>${titleCase(e.name)}${e.pct != null ? ` <span class="muted">(${Math.round(e.pct)}% in)</span>` : ''}</td><td>${sgn(e.m)}</td><td>${sgn(e.lean)}</td><td><b>${sgn(e.est)}</b></td></tr>`).join('') + `</tbody></table>` : '';
+  const how = `<p class="small muted">How it works: each reporting county implies a statewide margin (its margin now minus its usual lean), averaged across ${ests.length} counties and weighted toward the best bellwethers${ests.length ? ` (that average alone: ${sgn(mean)})` : ''}. Votes still to come are sized from each county's 2024 turnout and projected at the state estimate plus that county's usual lean, and early counts are trusted only in proportion to how much is in. Tested on 2022 and 2024 results, with counties reporting in random order, the final margin was missed by about 2.7 points with 2% of the vote counted, 2.3 with 10% and 1.1 with half. <b>The range assumes the votes counted so far are representative.</b> If early or mail votes lean differently from Election Day votes (up to 8 points in the test), every method missed by about 4.5 points.</p>`;
+  return head + (model || `<div class="big">${sgn(mean)}</div>`) + countedLine + table + how + foot;
 }
 function bindProjection(po) {
   const el = document.getElementById('minpct');

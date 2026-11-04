@@ -252,8 +252,22 @@ const poOf = d => fipsToPo[d.id.slice(0, 2)];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const titleCase = s => esc(s).toLowerCase().replace(/(^|[\s-])\w/g, m => m.toUpperCase());
 
+// prior turnout per county (2024 presidential total votes): sizes the votes still to come in the projection
+let priorBase = null, priorMargin = null; // priorMargin: state -> 2024 presidential margin, a weak prior when there is no poll
+async function ensurePrior() {
+  if (priorBase) return;
+  const m = await loadElection('president', 2024); priorBase = new Map();
+  const st = new Map();
+  for (const [fips, rows] of m) {
+    const r = rows.find(x => x.race === 'regular') || rows[0];
+    if (!r || !(r.total_votes > 0)) continue;
+    priorBase.set(fips, r.total_votes);
+    const a = st.get(r.state_po) || { d: 0, r: 0, t: 0 }; a.d += r.dem_votes; a.r += r.rep_votes; a.t += r.total_votes; st.set(r.state_po, a);
+  }
+  priorMargin = new Map([...st].map(([po, a]) => [po, (a.d - a.r) / a.t * 100]));
+}
 async function selectState(d, opts = {}) {
-  await Promise.all([ensureAffinity(), ensurePolls()]);
+  await Promise.all([ensureAffinity(), ensurePolls(), ensurePrior()]);
   for (const r of affinity.values()) fipsToPo[r.county_fips.slice(0, 2)] = r.state_po;
   const po = poOf(d);
   if (!po) return;
