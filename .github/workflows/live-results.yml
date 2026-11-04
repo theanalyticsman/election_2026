@@ -43,6 +43,6 @@ jobs:
       - name: Ohio
         continue-on-error: true
         run: python -I scripts/fetch_oh.py
-      - name: civicAPI (all states except FL SC IA)
+      - name: civicAPI (FL SC IA TX ME MI MN NE KS)
         continue-on-error: true
         run: python -I scripts/fetch_civic.py
