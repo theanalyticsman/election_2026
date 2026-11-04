@@ -11,7 +11,7 @@
 //  5. Final margin = counted votes plus projected remaining votes, as one statewide number, with a range and win probability.
 const PROJ = (() => {
   // defaults picked with scripts/backtest_projection.js (size weighting and a county noise of 2 gave the most accurate, best-calibrated ranges)
-  const PARAMS = { sizeWeight: 0.5, lambda: 0.5, spreadFloor: 3, seFloor: 1.5, countyNoise: 2, systematic: 0.5, pollExtra: 2.5, minPct: 0, sysEarly: 4, cred: 0.05 };
+  const PARAMS = { sizeWeight: 0.5, lambda: 0.5, spreadFloor: 3, seFloor: 1.5, countyNoise: 2, systematic: 0.5, pollExtra: 2.5, minPct: 0, sysEarly: 4, cred: 0.05, tiltK: 0.6 };
 
   const phi = z => { // standard normal CDF (Abramowitz-Stegun)
     const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2);
@@ -64,7 +64,9 @@ const PROJ = (() => {
     if (poll && poll.margin != null && !isNaN(poll.margin)) {
       const sdp = Math.sqrt((+poll.err || 4) ** 2 + P.pollExtra ** 2);
       // credibility: trust the counted counties in proportion to how much of the vote they are (cred = how much vote counts as 'half trust')
-      const a = (1 / (seS * seS)) * (P.cred > 0 ? fIn / (fIn + P.cred) : 1), b = 1 / (sdp * sdp);
+      // with a real poll average: if the counted counties disagree sharply with it, suspect early/mail-ballot tilt (every county shifted the same way) and trust them less (not used for the weak history prior, which is often far off; the backtest has no polls, so this guard is untested)
+      const tilt = poll.isPoll ? P.tiltK * Math.abs(S - (+poll.margin)) * (1 - fIn) : 0, seD = Math.sqrt(seS * seS + tilt * tilt);
+      const a = (1 / (seD * seD)) * (P.cred > 0 ? fIn / (fIn + P.cred) : 1), b = 1 / (sdp * sdp);
       S = (S * a + (+poll.margin) * b) / (a + b); seS = Math.sqrt(1 / (a + b)); pollUsed = true;
     }
     // 4-5. final margin: counted votes + projected remaining votes

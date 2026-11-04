@@ -15,6 +15,8 @@ sup = shutil.which("supabase")
 def lit(col, v):
     if col == "pct_reporting":
         return str(round(float(v), 2)) if (v or "").strip() else "null"
+    if col == "source_updated":
+        return "'" + v.replace("'", "") + "'" if (v or "").strip() else "null"
     if col in INT:
         return str(int(float(v or 0)))
     return "'" + (v or "").replace("'", "''") + "'"
@@ -34,9 +36,11 @@ def run(sql):
 for mig in ([] if os.environ.get("SKIP_MIGRATIONS") else sorted((ROOT / "supabase/migrations").glob("*.sql"))):
     run(mig.read_text(encoding="utf-8"))
 rows = list(csv.DictReader(open(src, encoding="utf-8")))
-if rows and "pct_reporting" in rows[0]:  # live fetchers add this column; historical files do not
-    COLS = COLS + ["pct_reporting"]
-upd = ", ".join(f"{c}=excluded.{c}" for c in COLS[5:]) + ", updated_at=now()"
+for extra in ("pct_reporting", "source_updated"):  # live fetchers add these columns; historical files do not
+    if rows and extra in rows[0]:
+        COLS = COLS + [extra]
+upd = (", ".join(f"{c}=excluded.{c}" for c in COLS[5:]) + ", updated_at=now()"
+       + ", votes_changed_at=case when excluded.total_votes is distinct from public.county_results.total_votes then now() else public.county_results.votes_changed_at end")
 for i in range(0, len(rows), CHUNK):
     vals = ",\n".join("(" + ",".join(lit(c, r[c]) for c in COLS) + ")" for r in rows[i:i + CHUNK])
     run(f"insert into public.county_results ({','.join(COLS)}) values\n{vals}\n"

@@ -31,17 +31,24 @@ async function feedRefresh() {
     c.rows.push({ fips: r.county_fips, name: r.county_name, d: r.dem_votes, r: r.rep_votes, o: r.other_votes, dc: r.dem_candidate, rc: r.rep_candidate,
       pct: r.pct_reporting == null ? undefined : +r.pct_reporting });
     if (r.updated_at && (!updated || r.updated_at > updated)) updated = r.updated_at;
+    if (r.source_updated) { const ms = Date.parse(r.source_updated); if (!c.srcUpdated || ms > c.srcUpdated) c.srcUpdated = ms; }
+    if (r.votes_changed_at) { const ms = Date.parse(r.votes_changed_at); if (!c.changedAt || ms > c.changedAt) c.changedAt = ms; }
+    if (r.pct_reporting != null) c.maxPct = Math.max(c.maxPct || 0, +r.pct_reporting);
   }
   const stamp = JSON.stringify(Object.values(contests).map(c => [c.office, c.race, c.state_po, c.rows.reduce((s, r) => s + r.d + r.r + r.o, 0)]));
   const changed = stamp !== FEED.stamp;
   FEED = { contests, stamp, updated };
   return changed;
 }
+const STALE_MIN = 20; // minutes with no change in a state's vote counts (while it is not nearly done) before the map warns
+// civicAPI keeps refreshing its own 'last updated' time even when a state's numbers are frozen, so stalled = the counts themselves have not changed
+const feedStale = c => c.feed && c.changedAt && Date.now() - c.changedAt > STALE_MIN * 60000 && (c.maxPct == null || c.maxPct < 98);
 function feedNote() {
   const st = [...new Set(Object.values(FEED.contests).map(c => c.state_po))];
   if (!st.length) return '';
   const t = FEED.updated ? new Date(FEED.updated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
-  return `Official state feed: ${st.join(', ')}${t ? ` (updated ${t})` : ''}.`;
+  const stale = Object.values(FEED.contests).filter(c => feedStale(c)).map(c => c.state_po);
+  return `Official state feed: ${st.join(', ')}${t ? ` (updated ${t})` : ''}.` + (stale.length ? ` <b style="color:#d4574a">Possibly stalled (no new votes in ${STALE_MIN}+ min): ${[...new Set(stale)].join(', ')}. Check NPR/AP.</b>` : '');
 }
 // poll for new counts every minute; only redraw when something changed
 setInterval(async () => { if (await feedRefresh()) await lvAfterChange(null); }, 60000);
@@ -358,13 +365,14 @@ function lvProjectOne(po, c) {
   const counted = (D - R) / T * 100;
   const pm = (typeof pollAvg !== 'undefined' && pollAvg && c.office === 'senate') ? pollAvg.get(po + '|' + c.race) : null;
   const pollLine = pm ? ` Pre-election poll average: <b>${sgn(+pm.margin)}</b>.` : '';
+  const stale = feedStale(c) ? `<div class="small" style="color:#d4574a;margin:4px 0"><b>Counts may be stalled.</b> This state's vote totals have not changed for ${Math.round((Date.now() - c.changedAt) / 60000)} minutes${c.srcUpdated ? ` (the source says it updated at ${new Date(c.srcUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}, but the numbers did not move)` : ''}. They could be out of date, so check NPR or AP before trusting them.</div>` : '';
   const countedLine = `<div class="small muted">Counted so far: <b>${sgn(counted)}</b> from ${n} of ${nState} counties (${T.toLocaleString()} votes).${pollLine}</div>`;
   // outcome model (web/model.js): counted votes + projected remaining votes, with the poll average as a prior
   const byFips = new Map(c.rows.map(r => [r.fips, r]));
   const input = lvCounties(po).map(a => { const r = byFips.get(a.county_fips) || {}; return { fips: a.county_fips, d: r.d || 0, r: r.r || 0, o: r.o || 0, pct: r.pct, base: typeof priorBase !== 'undefined' && priorBase ? priorBase.get(a.county_fips) : null, lean: +a.lean, score: +a.score }; });
   // the model already weights each county by how much of it is counted, so the cutoff is capped at 30% here (live counties are often only 5-40% in)
   const hist = typeof priorMargin !== 'undefined' && priorMargin && priorMargin.has(po) ? priorMargin.get(po) : null;
-  const prior = pm ? { margin: +pm.margin, err: +pm.err } : (hist != null ? { margin: hist, err: 6.5 } : null);
+  const prior = pm ? { margin: +pm.margin, err: +pm.err, isPoll: true } : (hist != null ? { margin: hist, err: 6.5 } : null);
   const pr = PROJ.project(input, prior, { minPct: Math.min(minPct, 30) });
   let model = '';
   if (pr) {
@@ -381,7 +389,7 @@ function lvProjectOne(po, c) {
   const table = ests.length ? `<table class="mini"><thead><tr><th>County</th><th>Now</th><th>Usual lean</th><th>Implies</th></tr></thead><tbody>` +
     top.map(e => `<tr><td>${titleCase(e.name)}${e.pct != null ? ` <span class="muted">(${Math.round(e.pct)}% in)</span>` : ''}</td><td>${sgn(e.m)}</td><td>${sgn(e.lean)}</td><td><b>${sgn(e.est)}</b></td></tr>`).join('') + `</tbody></table>` : '';
   const how = `<p class="small muted">How it works: each reporting county implies a statewide margin (its margin now minus its usual lean), averaged across ${ests.length} counties and weighted toward the best bellwethers${ests.length ? ` (that average alone: ${sgn(mean)})` : ''}. Votes still to come are sized from each county's 2024 turnout and projected at the state estimate plus that county's usual lean, and early counts are trusted only in proportion to how much is in. Tested on 2022 and 2024 results, with counties reporting in random order, the final margin was missed by about 2.7 points with 2% of the vote counted, 2.3 with 10% and 1.1 with half. <b>The range assumes the votes counted so far are representative.</b> If early or mail votes lean differently from Election Day votes (up to 8 points in the test), every method missed by about 4.5 points.</p>`;
-  return head + (model || `<div class="big">${sgn(mean)}</div>`) + countedLine + table + how + foot;
+  return head + stale + (model || `<div class="big">${sgn(mean)}</div>`) + countedLine + table + how + foot;
 }
 function bindProjection(po) {
   const el = document.getElementById('minpct');

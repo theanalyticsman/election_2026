@@ -457,7 +457,8 @@ async function renderPoll() {
   } else {
     const stops = d3.range(0, 1.001, .1).map(t => colorPerf(-15 + t * 30));
     $('legend').innerHTML = `<span>More R than polls imply</span><span class="bar" style="background:linear-gradient(90deg,${stops.join(',')})"></span><span>More D than polls imply</span><span>(points)</span>`;
-    $('status').textContent = `2026 Senate results vs. the polling expectation (poll average + the county's usual lean): ${have.toLocaleString()} counties with results in ${states.size} state${states.size === 1 ? '' : 's'}. Blue = more Democratic than the polls imply, red = more Republican. States without results stay grey; switch to Poll model to see the forecast everywhere. ${typeof feedNote === 'function' ? feedNote() : ''}`;
+    $('status').textContent = `2026 Senate results vs. the polling expectation (poll average + the county's usual lean): ${have.toLocaleString()} counties with results in ${states.size} state${states.size === 1 ? '' : 's'}. Blue = more Democratic than the polls imply, red = more Republican. States without results stay grey; switch to Poll model to see the forecast everywhere.`;
+    if (typeof feedNote === 'function') $('status').insertAdjacentHTML('beforeend', ' ' + feedNote()); // may contain a stalled-feed warning (HTML)
   }
 }
 function showPollTip(e, d) {
