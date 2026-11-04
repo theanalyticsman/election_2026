@@ -230,7 +230,8 @@ function showTip(e, d) {
   if (cur.perf) return showPerfTip(e, d);
   if (cur.poll) return showPollTip(e, d);
   const id = d.id, a = pick(cur.A.get(id), cur.race);
-  let html = `<b>${d.plan ? d.properties.name + ' (Alaska)' : d.properties.name + ' County, FIPS ' + id}</b><table>` + line(a, `${cur.aYear} ${OFFICES[cur.aOff]}`);
+  let html = `<b>${d.plan ? d.properties.name + ' (Alaska)' : d.properties.name + ' County, FIPS ' + id}</b><table>` + line(a, `${cur.aYear} ${OFFICES[cur.aOff]}`)
+    + (a && a.pct_reporting != null ? `<tr><td colspan="3" class="muted" style="font-size:12px">${Math.round(a.pct_reporting)}% of votes in</td></tr>` : '');
   if (cur.B) {
     const b = pick(cur.B.get(id), cur.race);
     html += line(b, `${cur.bYear} ${OFFICES[cur.bOff]}`);
@@ -403,7 +404,7 @@ function liveSenateRows() {
   // apply each state's race that matches its poll last, so it wins if both regular and special rows were pasted
   const match = c => (pollByState && pollByState.get(c.state_po) && pollByState.get(c.state_po).race === c.race) ? 1 : 0;
   cs.sort((a, b) => match(a) - match(b));
-  for (const c of cs) { states.add(c.state_po); for (const r of c.rows) m.set(r.fips, { d: r.d, r: r.r, o: r.o, state: c.state_po }); }
+  for (const c of cs) { states.add(c.state_po); for (const r of c.rows) m.set(r.fips, { d: r.d, r: r.r, o: r.o, pct: r.pct, state: c.state_po }); }
   return { m, states };
 }
 // example scenario for the 'vs polls' view before real results exist: every county misses the poll by one shared amount plus a fixed bit of county noise
@@ -460,6 +461,7 @@ function showPollTip(e, d) {
       const actual = (r.d - r.r) / tot * 100, diff = actual - x.expected;
       head = `${diff >= 0 ? 'More Democratic' : 'More Republican'} than the polls imply by ${Math.abs(diff).toFixed(1)} pts`;
       actualRow = `<tr><td>Actual margin</td><td class="pct">${sgn2(actual)}</td><td></td></tr>`;
+      if (r.pct != null) actualRow += `<tr><td colspan="3" style="color:var(--muted);font-size:12px">${Math.round(r.pct)}% of votes in</td></tr>`;
     } else {
       head = `Expected margin: ${sgn2(x.expected)} (about &plusmn;${miss.toFixed(0)})${cur.view === 'vs' ? ', no results yet' : ''}`;
     }

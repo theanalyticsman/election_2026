@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data/processed/county_results_2026_civic.csv"
 UA = "election-comp-research/1.0 (personal analysis; contact apparao.prattipati@gmail.com)"
 FIELDS = ["year", "office", "race", "state_po", "county_fips", "county_name", "dem_votes",
-          "rep_votes", "other_votes", "total_votes", "dem_candidate", "rep_candidate"]
+          "rep_votes", "other_votes", "total_votes", "dem_candidate", "rep_candidate", "pct_reporting"]
 IDS = {"FL": 87068, "SC": 87409, "TX": 87438, "IA": 87151, "ME": 87188, "MI": 87214, "MN": 87229, "NE": 87254, "KS": 87162,
        "GA": 87087, "NC": 87346, "KY": 87174, "CO": 87022, "DE": 87036, "ID": 87103, "IL": 87129, "LA": 87183, "MT": 87247,
        "MA": 87275, "NH": 87283, "NM": 87288, "NJ": 87302, "OR": 87374, "RI": 87396, "SD": 87446, "VA": 87472, "TN": 87475, "WV": 87477}
@@ -68,7 +68,8 @@ def rows_from_race(d, po):
                 o_v += v
         out.append({"year": 2026, "office": "senate", "race": "special" if po in SPECIAL else "regular", "state_po": po,
                     "county_fips": str(fips), "county_name": clean(r["name"]), "dem_votes": d_v, "rep_votes": r_v,
-                    "other_votes": o_v, "total_votes": d_v + r_v + o_v, "dem_candidate": "", "rep_candidate": ""})
+                    "other_votes": o_v, "total_votes": d_v + r_v + o_v, "dem_candidate": "", "rep_candidate": "",
+                    "pct_reporting": r.get("percent_reporting") if r.get("percent_reporting") is not None else ""})
     for r in out:
         r["dem_candidate"], r["rep_candidate"] = dem_name, rep_name
     return out

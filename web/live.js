@@ -28,7 +28,8 @@ async function feedRefresh() {
     if (!(r.total_votes > 0)) continue;
     const k = `${r.office}|${r.race}|${r.state_po}`;
     const c = contests[k] || (contests[k] = { office: r.office, race: r.race, state_po: r.state_po, feed: true, rows: [] });
-    c.rows.push({ fips: r.county_fips, name: r.county_name, d: r.dem_votes, r: r.rep_votes, o: r.other_votes, dc: r.dem_candidate, rc: r.rep_candidate });
+    c.rows.push({ fips: r.county_fips, name: r.county_name, d: r.dem_votes, r: r.rep_votes, o: r.other_votes, dc: r.dem_candidate, rc: r.rep_candidate,
+      pct: r.pct_reporting == null ? undefined : +r.pct_reporting });
     if (r.updated_at && (!updated || r.updated_at > updated)) updated = r.updated_at;
   }
   const stamp = JSON.stringify(Object.values(contests).map(c => [c.office, c.race, c.state_po, c.rows.reduce((s, r) => s + r.d + r.r + r.o, 0)]));
@@ -109,10 +110,36 @@ function lvParse(text) {
   // a field like "916 283" means a number with thousands commas was split apart, so this is not CSV
   const splitNumber = !tabs && lines.some(l => lvSplitCsv(l).some(f => /\d\s+\d/.test(f)));
   const csvish = csvCounts.length > 0 && csvCounts[0] >= 3 && csvCounts.every(c => c === csvCounts[0]) && !splitNumber;
-  return lines.map(l => tabs ? l.split('\t').map(s => s.trim())
+  const rows = lines.map(l => tabs ? l.split('\t').map(s => s.trim())
     : csvish ? lvSplitCsv(l)
     : l.split(/\s{2,}/).length > 2 ? l.split(/\s{2,}/).map(s => s.trim())
     : lvFallbackSplit(l.trim()));
+  return lvFromMargins(rows) || rows;
+}
+// NYT's county table has no vote counts: just "Trump +3" and the total votes. Rebuild two vote columns from margin x total
+// (treating other candidates as zero), so the margin is right to the nearest point; the pickers then say which name is the Democrat.
+function lvFromMargins(rows) {
+  const mm = c => (c || '').match(/^(.+?)\s*\+\s*(\d+(?:\.\d+)?)$/);
+  const mc = [...Array(Math.max(...rows.map(r => r.length))).keys()].find(c => rows.filter(r => mm(r[c])).length >= Math.max(3, rows.length * 0.5));
+  if (mc === undefined) return null;
+  const data = rows.filter(r => mm(r[mc]) || /^even$/i.test((r[mc] || '').trim()));
+  const tc = [...Array(mc + 3).keys()].find(c => c > mc && data.filter(r => !isNaN(lvNum(r[c]))).length > data.length * 0.8);
+  if (tc === undefined) return null;
+  const pc = [...Array(Math.max(...data.map(r => r.length))).keys()].find(c => c > tc && data.filter(r => /^[\d.]+%$/.test((r[c] || '').trim())).length > data.length * 0.8);
+  const freq = {};
+  data.forEach(r => { const m = mm(r[mc]); if (m) freq[m[1].trim()] = (freq[m[1].trim()] || 0) + 1; });
+  const names = Object.keys(freq).sort((a, b) => freq[b] - freq[a]).slice(0, 2);
+  if (!names.length) return null;
+  if (names.length < 2) names.push('Opponent');
+  const out = [['County', '% in', names[0], names[1], 'Total']];
+  data.forEach(r => {
+    const m = mm(r[mc]), T = lvNum(r[tc]);
+    if (isNaN(T) || (m && !names.includes(m[1].trim()))) return;
+    const frac = m ? (+m[2] / 100) * (m[1].trim() === names[0] ? 1 : -1) : 0; // + favours names[0]
+    out.push([r[0], pc !== undefined ? r[pc] : '', String(Math.round(T * (1 + frac) / 2)), String(Math.round(T * (1 - frac) / 2)), String(T)]);
+  });
+  out.note = 'This table gives margins and total votes only, so the vote counts are estimated from them (accurate to about a point). Check which name is the Democrat below.';
+  return out;
 }
 function lvGuess(rows) {
   const hasHeader = rows[0].filter(c => !isNaN(lvNum(c))).length < 2;
@@ -243,7 +270,7 @@ function lvRefresh() {
   lvPrev = { matched, unmatched, po, used };
   const free = lvCounties(po).filter(r => !used.has(r.county_fips));
   const hdrName = i => (hdr && rows[0][i]) ? esc(rows[0][i]) : `column ${i + 1}`;
-  prev.innerHTML = `Using <b>${hdrName(c.dem)}</b> as Democratic and <b>${hdrName(c.rep)}</b> as Republican (change the pickers above if that is backwards).<br><b>${matched.length}</b> of ${matched.length + unmatched.length} rows matched to ${STATE_NAMES[po] || po} counties` +
+  prev.innerHTML = (rows.note ? `<b>Note:</b> ${rows.note}<br>` : '') + `Using <b>${hdrName(c.dem)}</b> as Democratic and <b>${hdrName(c.rep)}</b> as Republican (change the pickers above if that is backwards).<br><b>${matched.length}</b> of ${matched.length + unmatched.length} rows matched to ${STATE_NAMES[po] || po} counties` +
     (skipped.length ? ` (${skipped.length} non-county rows ignored)` : '') + '.' +
     (unmatched.length ? `<div class="small">Couldn't match these automatically; pick the county or leave blank to skip:</div><div id="lvUn">` +
       unmatched.map((u, i) => `<div class="un"><span>${esc(u.name)}</span><select data-i="${i}"><option value="">(skip)</option>${free.map(f => `<option value="${f.county_fips}">${titleCase(f.county_name)}</option>`).join('')}</select></div>`).join('') + '</div>' : '');

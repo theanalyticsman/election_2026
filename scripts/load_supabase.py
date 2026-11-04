@@ -13,6 +13,8 @@ sup = shutil.which("supabase")
 
 
 def lit(col, v):
+    if col == "pct_reporting":
+        return str(round(float(v), 2)) if (v or "").strip() else "null"
     if col in INT:
         return str(int(float(v or 0)))
     return "'" + (v or "").replace("'", "''") + "'"
@@ -32,6 +34,8 @@ def run(sql):
 for mig in ([] if os.environ.get("SKIP_MIGRATIONS") else sorted((ROOT / "supabase/migrations").glob("*.sql"))):
     run(mig.read_text(encoding="utf-8"))
 rows = list(csv.DictReader(open(src, encoding="utf-8")))
+if rows and "pct_reporting" in rows[0]:  # live fetchers add this column; historical files do not
+    COLS = COLS + ["pct_reporting"]
 upd = ", ".join(f"{c}=excluded.{c}" for c in COLS[5:]) + ", updated_at=now()"
 for i in range(0, len(rows), CHUNK):
     vals = ",\n".join("(" + ",".join(lit(c, r[c]) for c in COLS) + ")" for r in rows[i:i + CHUNK])
