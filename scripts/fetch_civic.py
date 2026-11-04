@@ -1,7 +1,7 @@
 """Fetch 2026 U.S. Senate county results from civicAPI (https://civicapi.org, free, no key) and load them.
 
 Usage: python scripts/fetch_civic.py [STATE ...] [--no-load]
-Default states: the ones with no official route in this project (TX MN ME KS NE MI). FL, OH, SC and IA have their own
+Default states: the ones with no official route in this project (TX MN ME KS NE MI LA). FL, OH, SC and IA have their own
 fetchers; pass them here only to compare, since the last loader to run overwrites the same rows.
 civicAPI says its data comes from Secretary of State sites, updated every 5-10 seconds; that is its own claim, so
 spot-check a few counties against a state source. The race IDs below were found by scanning civicAPI on Nov 2 2026
@@ -20,7 +20,7 @@ IDS = {"FL": 87068, "SC": 87409, "TX": 87438, "IA": 87151, "ME": 87188, "MI": 87
        "GA": 87087, "NC": 87346, "KY": 87174, "CO": 87022, "DE": 87036, "ID": 87103, "IL": 87129, "LA": 87183, "MT": 87247,
        "MA": 87275, "NH": 87283, "NM": 87288, "NJ": 87302, "OR": 87374, "RI": 87396, "SD": 87446, "VA": 87472, "TN": 87475, "WV": 87477}
 SPECIAL = {"FL"}  # regular unless listed
-DEFAULT = ["TX", "MN", "ME", "KS", "NE", "MI"]
+DEFAULT = ["TX", "MN", "ME", "KS", "NE", "MI", "LA"]
 
 
 def get_race(race_id):

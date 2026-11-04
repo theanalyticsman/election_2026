@@ -9,7 +9,7 @@ while ($true) {
     python -I scripts/fetch_sc.py
     Write-Host ("[{0}] Iowa..." -f (Get-Date -Format "HH:mm:ss"))
     python -I scripts/import_ia.py --download
-    Write-Host ("[{0}] civicAPI (TX MN ME KS NE MI)..." -f (Get-Date -Format "HH:mm:ss"))
+    Write-Host ("[{0}] civicAPI (TX MN ME KS NE MI LA)..." -f (Get-Date -Format "HH:mm:ss"))
     python -I scripts/fetch_civic.py
     Start-Sleep -Seconds ($Minutes * 60)
 }
